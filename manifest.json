@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Affilyatics",
+  "version": "4.0.0",
+  "description": "Everything you need to know with one click! Your live Amazon Associates dashboard: all stores and countries, flexible periods, interactive chart and alerts. Uses your existing signed-in session.",
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "permissions": ["storage", "alarms", "declarativeNetRequest"],
+  "optional_permissions": ["notifications"],
+  "host_permissions": ["https://affiliate-program.amazon.com/*", "https://associates.amazon.ca/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Affilyatics",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  }
+}

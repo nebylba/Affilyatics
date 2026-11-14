@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Affilyatics</title>
+<link rel="icon" type="image/svg+xml" href="icons/favicon-light.svg">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+<img class="wordmark wm-light" src="icons/logo-light.svg" alt="Affilyatics – Everything you need to know with one click!">
+    <img class="wordmark wm-dark" src="icons/logo-dark.svg" alt="" aria-hidden="true">
+  </div>
+  <div id="headtotal" class="headtotal" aria-live="polite"></div>
+  <div class="tools">
+    <div class="btns">
+      <div class="brow r1"><button id="close" class="iconbtn" type="button" title="Close" aria-label="Close"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="brow r2"><button id="theme" class="iconbtn" type="button" title="Switch light / dark mode" aria-label="Switch light or dark mode"></button><button id="gear" class="iconbtn" type="button" title="Settings" aria-label="Settings"></button><button id="bell" class="iconbtn bellbtn" type="button" title="Notifications" aria-label="Notifications" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span id="bellbadge" class="bellbadge" hidden></span>
+      </button><button id="amazon" class="iconbtn" type="button" title="Open Amazon Associates" aria-label="Open Amazon Associates"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true"><path d="M12.9 14.3c-.7.6-1.7.9-2.7.9-1.7 0-2.9-1-2.9-2.6 0-1.9 1.5-2.7 3.5-2.9l2-.2v-.5c0-.9-.5-1.4-1.5-1.4-.9 0-1.4.4-1.6 1.1l-1.7-.3C8.3 6.9 9.6 6 11.4 6c2 0 3.2 1 3.2 2.9v4.2c0 .6.1 1 .3 1.3h-1.7c-.1-.3-.2-.7-.3-1.1zm-.1-3.2l-1.6.2c-1 .1-1.5.5-1.5 1.2 0 .6.5 1 1.2 1 1.2 0 1.9-.8 1.9-1.8z" fill="currentColor"/><path d="M4 16.4c3.6 2.4 8.6 3 13.7.9" stroke="#ff9900" stroke-width="1.8" stroke-linecap="round"/><path d="M16.2 15.2l2.2 1.1-1.1 2.1" stroke="#ff9900" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+      <div class="brow r3"><button id="refresh" class="refreshbtn" type="button" title="Refresh now" aria-label="Refresh now">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg><span>Refresh</span></button></div>
+    </div>
+    <span id="status" class="muted small"></span>
+  </div>
+  <div id="notifpanel" class="notifpanel"></div>
+  <div id="progress" class="progress" hidden><i></i></div>
+</header>
+<main id="main"></main>
+<script src="shared.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
