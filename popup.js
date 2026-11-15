@@ -529,7 +529,7 @@ function storeFilterHTML() {
         <button type="button" class="mi pi ${view.stores ? '' : 'sel'}" role="option" aria-selected="${!view.stores}" data-store-pick=""><span class="chk">${view.stores ? '' : '✓'}</span><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button>
         ${accounts.map((a) => { const on = view.stores && view.stores.has(a.id); return `<button type="button" class="mi pi ${on ? 'sel' : ''}" role="option" aria-selected="${!!on}" data-store-pick="${esc(a.id)}"><span class="chk">${on ? '✓' : ''}</span><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span><em>${esc(amountText(tot[a.id]))}</em></button>`; }).join('')}</div>`
     : '';
-  return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sline"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more">+${others} other${others > 1 ? 's' : ''}</span>` : ''}</span>${CHEVRON}</button>${menu}</div>`;
+  return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sline"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more" title="${others} other store${others > 1 ? 's' : ''}">+${others}</span>` : ''}</span>${CHEVRON}</button>${menu}</div>`;
 }
 function tagList() {
   const m = new Map();

@@ -260,13 +260,13 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 
 
 /* logo: separate light / dark artwork (your files, text already outlined) */
-.wordmark { overflow: visible; display: block; height: 58px; width: auto; max-width: 100%; }
+.wordmark { overflow: visible; display: block; height: 66px; width: auto; max-width: 100%; }
 /* header buttons: 3 x 2 grid so they never run into the middle card */
 .btns { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
 .brow { display: flex; gap: 6px; justify-content: flex-end; }
 #close { background: #c8372d; border-color: #c8372d; color: #fff; }
 #close:hover { background: #b02a21; border-color: #b02a21; }
-.refreshbtn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 36px; padding: 0 14px; border-radius: 6px; background: var(--accent); border-color: var(--accent); color: var(--navy-on, #14244a); font-weight: 600; }
+.refreshbtn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 40px; padding: 0 14px; border-radius: 6px; background: var(--accent); border-color: var(--accent); color: var(--navy-on, #14244a); font-weight: 600; }
 .refreshbtn:hover { filter: brightness(.95); border-color: var(--accent); }
 .iconbtn { width: 36px; height: 36px; border-radius: 6px; }
 .tools { align-items: flex-end; }
@@ -275,8 +275,8 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 .top { gap: 12px; }
 .thead { min-width: 0; }
 .trow2 { grid-template-columns: 150px minmax(0, 1fr); gap: 14px; }
-@media (max-width: 1100px) { .wordmark { height: 46px; } .tiles { gap: 0 8px; } .big { font-size: 22px; } }
-@media (max-width: 1080px) { .wordmark { height: 38px; } .tl .pc { display: none; } .tl { font-size: 12px; } .trow2 { grid-template-columns: 124px minmax(0, 1fr); gap: 10px; } .tiles { gap: 0 6px; } .big { font-size: 19px; } .tile b { font-size: 15px; } }
+@media (max-width: 1100px) { .wordmark { height: 52px; } .tiles { gap: 0 8px; } .big { font-size: 22px; } }
+@media (max-width: 1080px) { .wordmark { height: 44px; } .tl .pc { display: none; } .tl { font-size: 12px; } .trow2 { grid-template-columns: 124px minmax(0, 1fr); gap: 10px; } .tiles { gap: 0 6px; } .big { font-size: 19px; } .tile b { font-size: 15px; } }
 
 .wm-dark { display: none; }
 :root[data-theme="dark"] .wm-light { display: none; }
@@ -316,11 +316,13 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 
 /* Store filter under the logo, Tags filter after Countries */
 .storefilter { position: relative; z-index: 6; }
-.storefilter { width: 100%; }
+.storefilter { width: 100%; contain: inline-size; }   /* the logo, not the filter, sets the column width: the filter ends exactly where the logo ends */
 .storefilter .dd { display: block; }
 /* same size, shape and bottom line as the Refresh button on the right */
-.storebtn { width: 100%; height: 36px; padding: 0 12px; border-radius: 9px; justify-content: space-between; gap: 8px; align-items: center; font-weight: 600; }
-.sline { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
+.storebtn { width: 100%; height: 40px; padding: 0 12px; border-radius: 9px; justify-content: space-between; gap: 8px; align-items: center; font-weight: 600; }
+.sline { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
+.sline b { overflow: hidden; text-overflow: ellipsis; }
+.storebtn .more { font-size: 14px; font-weight: 600; }
 .brand { align-self: stretch; justify-content: space-between; padding-bottom: 23px; }
 .storebtn .sl { font-size: 10px; letter-spacing: .12em; color: var(--muted); }
 .storebtn b { font-weight: 600; font-size: 15px; }
@@ -332,7 +334,7 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 .scrow small { color: var(--muted); font-size: 12px; }
 .ddsum.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
 /* "?" next to the Tags filter: fades between its normal and the accent colour while a tag filter is on */
-.taghelp { margin-left: 2px; }
+.taghelp { margin-left: 4px; width: 24px; height: 24px; font-size: 15px; border-radius: 7px; }
 .taghelp::after { right: auto; left: -8px; }
 .taghelp.pulse { animation: helpfade 1.8s ease-in-out infinite; }
 @keyframes helpfade {

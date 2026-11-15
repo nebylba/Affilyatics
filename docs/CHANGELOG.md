@@ -4,6 +4,9 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Header polish**: logo 58 -> 66 px; the Store filter has the Refresh button's height (40 px), ends exactly where the logo
+  ends (the logo sets the column width) and its bottom line matches Refresh; it shows "+2" (tooltip: 2 other stores); the "?"
+  next to the Tags filter is bigger (24 px).
 - **Tags filter**: the "Tag filter on" banner is replaced by a "?" next to the filter. It fades between its normal and the
   accent colour while a tag is unselected, and its tooltip explains that the chart and Dates tab cannot be split by tag.
   Unticking "All tags" (or the last tag) now works: nothing selected shows zero totals ("No tags"); it is not restored
