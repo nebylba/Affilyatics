@@ -432,7 +432,7 @@ function pendingStat() {
   const curs = Object.keys(p).sort((a, b) => p[b].est - p[a].est);
   const items = curs.reduce((s, c) => s + p[c].items, 0);
   const value = curs.length
-    ? curs.map((c, i) => (i ? `<span class="muted xtra">+${fmtMoney(p[c].est, c)}</span>` : '~' + fmtMoney(p[c].est, c))).join('') 
+    ? ('~' + fmtMoney(p[curs[0]].est, curs[0]) + (curs.length > 1 ? `<span class="muted xtra" title="${esc(curs.slice(1).map((c) => '~' + fmtMoney(p[c].est, c)).join(' · '))}">+${curs.length - 1}</span>` : '')) 
     : `<span class="muted">${loaded ? 'None pending' : '…'}</span>`;
   const help = 'This is only an estimate, not a figure fetched from Amazon. It is calculated from your recent activity: ordered revenue minus shipped revenue over the last ' + PENDING_DAYS + ' days, multiplied by your commission rate (earnings divided by shipped revenue). When that difference is not usable it values the pending items at your average ordered price instead. It does not depend on the selected period. Commission is only paid when an item ships, so cancelled or returned orders will lower the real amount.';
   const cnt = curs.length ? `<span class="cnt">${fmtNum(items)} item${items === 1 ? '' : 's'}</span>` : '';
@@ -465,7 +465,7 @@ function returnedStat(dayRows, loc) {
   const curs = Object.keys(out).sort((a, b) => out[a].earn - out[b].earn);
   const items = curs.reduce((s, c) => s + out[c].ret, 0);
   const val = (c) => (out[c].approx ? '~' : '') + fmtMoney(out[c].earn, c);
-  const value = curs.length ? curs.map((c, i) => (i ? `<span class="muted xtra">${val(c)}</span>` : val(c))).join('') : '<span class="muted">None</span>';
+  const value = curs.length ? val(curs[0]) + (curs.length > 1 ? `<span class="muted xtra" title="${esc(curs.slice(1).map(val).join(' · '))}">+${curs.length - 1}</span>` : '') : '<span class="muted">None</span>';
   const sales = curs.map((c) => fmtMoney(out[c].rev, c)).join(' · ');
   const help = curs.length
     ? `Commission lost on returned items, taken from Amazon's report, where a return appears as negative earnings on the day it happens. Sales value of those returns: ${sales}.` + (curs.some((c) => out[c].approx) ? ' A "~" means some returns happened on days with more shipments than returns, so Amazon hides them in a positive total and that part is estimated from your average shipped item.' : '')

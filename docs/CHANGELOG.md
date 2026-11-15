@@ -4,6 +4,8 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Pending shipments / Returned items with several currencies**: the cards showed every currency on one line and overflowed.
+  They now show the main currency and a small "+N" (the other currencies are in its tooltip).
 - **Store filter uses the Countries click logic**: a checkbox per store (and "All stores") to combine stores, and a click on the
   name to see only that store; the menu stays open while you tick. At least one store stays on, the countries follow the chosen
   stores, and unticking "All stores" keeps the main store. The Tags filter already worked this way.
