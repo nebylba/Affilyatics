@@ -81,3 +81,11 @@ Types: orders, commissions, bonuses, rewards, connections, signedout, dataissue.
   per-day tag report puts sales under "Other"). `collect('tag', true)` is the unfiltered list for the menu. The `tag`
   dimension is requested when a tag filter is active, or the table / menu is open.
 - Both are persisted in `viewState`.
+
+## Creator Rewards enrollment alerts
+
+`fetchRewardMonths` (once per rewards refresh) runs `parseRewardOffer` on the Current page HTML and, at most every 30 min
+(`rewardsOffers` memo in `chrome.storage.local`), on the Upcoming tab (same `switchTab` POST as the Ended tab). Offers that
+need enrolling go to `detectEnroll`, which keeps `enrollSeen` (`acct|tab|month`) so each offer is announced once, then
+forgotten when it no longer needs enrolling. The event (`type: 'enroll'`) carries `url` = the store's Creator Rewards page,
+used by the bell list and by desktop alerts.

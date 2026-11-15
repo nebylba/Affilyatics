@@ -317,6 +317,40 @@ function parseRewardCards(html, status) {
   return out;
 }
 
+// ---- Creator Rewards offers that need you to enrol ----------------------------------------------------
+// The Current page says "Store ID x is enrolled."; the Upcoming tab says "... has no upcoming promotions." when empty.
+// When a store is NOT enrolled in a live or upcoming offer, the page shows a "not enrolled" sentence and/or an Enroll / Join / Opt-in
+// button (wording not seen yet on this account, so the check is generous but only fires for a real offer: month or duration found).
+const ENROLL_RE = /\b(enroll|enrol|opt[ -]?in|join|sign[ -]?up|participate|accept)\b/i;
+function parseRewardOffer(html, tab) {
+  const body = String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ');
+  const text = body.replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/\s+/g, ' ').trim();
+  if (/\bno (upcoming )?(promotions?|offers?)\b/i.test(text)) return null;
+  const buttons = [...body.matchAll(/<(?:button|a)\b[^>]*>([\s\S]*?)<\/(?:button|a)>/gi)].map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).filter((t) => t && !/^(current|upcoming|ended)$/i.test(t));
+  const notEnrolled = /\b(not|isn['’]t|aren['’]t)\s+(yet\s+)?enrolled\b/i.test(text);
+  const enrolled = !notEnrolled && /\b(is|are|you(?:'ve| have))\s+enrolled\b/i.test(text);
+  const btn = buttons.find((t) => ENROLL_RE.test(t) && t.length < 40);
+  const label = (text.match(new RegExp('(' + MONTHS.join('|') + ')\\s+(\\d{4})')) || []);
+  const dur = (text.match(/Offer duration:\s*([^.]*?\d{4}\s*[-–]\s*[^.]*?\d{4})/i) || [])[1] || '';
+  if (!(notEnrolled || (btn && !enrolled))) return null;
+  if (!label[0] && !dur) return null;                 // nothing that looks like an offer: do not guess
+  return { tab, label: label[0] || '', duration: dur.trim(), button: btn || '' };
+}
+async function detectEnroll(acct, offers) {
+  const { enrollSeen = {} } = await chrome.storage.local.get('enrollSeen');
+  let changed = false; const live = new Set();
+  for (const o of offers) {
+    const key = `${acct}|${o.tab}|${o.label || o.duration || 'offer'}`; live.add(key);
+    if (enrollSeen[key]) continue;
+    enrollSeen[key] = Date.now(); changed = true;
+    pushEvent('enroll', `Creator Rewards: enrollment needed${o.label ? ` · ${o.label}` : ''}`,
+      `${o.tab === 'Upcoming' ? 'A new Creator Rewards offer is coming' : 'A Creator Rewards offer is open'}${o.duration ? ` (${o.duration})` : ''}. Click to open the page and enroll store ${acct}.`,
+      { url: `${BASE}/creatorRewards?store_id=${encodeURIComponent(acct)}`, loc: 'US', acct, cur: null, amount: 0 });
+  }
+  for (const k of Object.keys(enrollSeen)) if (k.startsWith(acct + '|') && !live.has(k)) { delete enrollSeen[k]; changed = true; }   // enrolled or ended: a later offer announces again
+  if (changed) await chrome.storage.local.set({ enrollSeen });
+}
+
 const REWARDS_TTL_MS = 4.5 * 60000; // every 5-minute alarm re-reads it (a hair under 5 min so a slightly early alarm still counts)
 // The month list does not depend on the selected period: fetched at most once an hour per store (persisted).
 async function fetchRewardMonths(acct, fresh) {
@@ -338,6 +372,25 @@ async function fetchRewardMonths(acct, fresh) {
     });
     if (r.ok) months.push(...parseRewardCards(await r.text(), 'ended'));
   }
+  // offers that need enrolling: the current page every time, the Upcoming tab at most every 30 min
+  try {
+    const { rewardsOffers = {} } = await chrome.storage.local.get('rewardsOffers');
+    let memo = rewardsOffers[acct];
+    if (!memo || Date.now() - memo.at > 30 * 60000) {
+      let up = memo ? memo.up : null;
+      if (path && params) {
+        const u = await pageRequest(BASE + path.replace(/\/?$/, '/') + 'switchTab', {
+          method: 'POST', credentials: 'include',
+          headers: { Accept: 'text/html, */*; q=0.01', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'x-amz-acp-params': params },
+          body: JSON.stringify({ tab: 'Upcoming', storeId: acct, associateProgramId: 1 })
+        });
+        if (u.ok) up = parseRewardOffer(await u.text(), 'Upcoming');
+      }
+      memo = { at: Date.now(), up: up || null };
+      rewardsOffers[acct] = memo; await chrome.storage.local.set({ rewardsOffers });
+    }
+    await detectEnroll(acct, [parseRewardOffer(html, 'Current'), memo.up].filter(Boolean));
+  } catch (e) { console.warn('[affilyatics] enrollment check failed:', e.message); }
   detectRewards(acct, hit, months);
   rewardsMonths[acct] = { at: Date.now(), months };
   await chrome.storage.local.set({ rewardsMonths });
@@ -397,7 +450,7 @@ function deriveFromWider(cache, acct, loc, dim, range) {
 // Detected by comparing each fresh "this month" fetch with the previous snapshot of the same
 // store + country + month. Nothing is announced on the very first fetch (that is the baseline) or when the
 // baseline is older than 14 days, so you never get a flood of "new" events for old data.
-const NOTIFY_DEFAULT = { orders: true, commissions: true, bonuses: true, rewards: true, connections: true, signedout: true, dataissue: true, desktop: false };
+const NOTIFY_DEFAULT = { orders: true, commissions: true, bonuses: true, rewards: true, enroll: true, connections: true, signedout: true, dataissue: true, desktop: false };
 const SYM = { USD: '$', CAD: 'C$', GBP: '£', EUR: '€', SEK: 'kr ', PLN: 'zł ' };
 const money = (n, cur) => (n < 0 ? '-' : '') + (SYM[cur] || cur + ' ') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const BASELINE_MAX_AGE_MS = 14 * 86400000;

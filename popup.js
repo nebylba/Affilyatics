@@ -732,7 +732,7 @@ function rangeButtonHTML() {
 // Notifications: list + which events to notify about.
 const NOTIFY_TYPES = [
   ['orders', 'New orders', 'ordered'], ['commissions', 'Commissions', 'earnings'], ['bonuses', 'Bonuses & bounties', 'bonus'],
-  ['rewards', 'Creator Rewards', 'rewards'], ['connections', 'Creator Connections', 'connections'], ['signedout', 'Signed-out warnings', 'returned'], ['dataissue', 'Amazon report issues', 'pending']
+  ['rewards', 'Creator Rewards', 'rewards'], ['enroll', 'Creator Rewards: enrollment needed', 'bonus'], ['connections', 'Creator Connections', 'connections'], ['signedout', 'Signed-out warnings', 'returned'], ['dataissue', 'Amazon report issues', 'pending']
 ];
 const typeColor = (t) => { const x = NOTIFY_TYPES.find((n) => n[0] === t); return x ? `var(--s-${x[2]})` : 'var(--muted)'; };
 const notifyConf = () => ({ ...DEFAULTS.notify, ...(settings.notify || {}) });

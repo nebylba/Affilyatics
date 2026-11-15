@@ -4,6 +4,12 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Creator Rewards enrollment alert** (new notification type `enroll`, on by default, with its own switch in Settings):
+  when a live or upcoming Creator Rewards offer needs you to enrol, an alert says so and a click opens that store's
+  Creator Rewards page. Checked on every Creator Rewards refresh (the Current page) and every 30 min for the Upcoming tab;
+  announced once per offer and store, forgotten once you are enrolled or the offer ends. The wording of a not-enrolled
+  page has not been seen on this account yet, so detection looks for a "not enrolled" sentence or an Enroll / Join /
+  Opt-in button on a page that shows a month or an offer duration, and never guesses without one.
 - **Total income card taller**: its top lines up with the top of the logo and its bottom with the Store filter / Refresh button.
 - **Creator Rewards tier** in the Creator Rewards tile of the total card: "Tier 3/4 · $640 to next" (or "top tier"); the tooltip gives
   the month, the next tier and the whole tier table. The rewards rows now carry `tiers` (background.js `fetchRewards`).

@@ -34,7 +34,7 @@ const PERIODS = [
 const DEFAULTS = {
   countries: ['US', 'CA', 'GB', 'FR', 'DE'], accounts: null, period: 'month', tab: 'ALL',
   // which events create a notification; `desktop` = also show Chrome desktop alerts (needs the optional "notifications" permission)
-  notify: { orders: true, commissions: true, bonuses: true, rewards: true, connections: true, signedout: true, dataissue: true, desktop: false }
+  notify: { orders: true, commissions: true, bonuses: true, rewards: true, enroll: true, connections: true, signedout: true, dataissue: true, desktop: false }
 };
 
 const pad2 = (n) => String(n).padStart(2, '0');
