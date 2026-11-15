@@ -275,6 +275,8 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 .thead { min-width: 0; }
 .trow2 { grid-template-columns: 150px minmax(0, 1fr); gap: 14px; }
 @media (max-width: 1100px) { .wordmark { height: 52px; } .tiles { gap: 0 8px; } .big { font-size: 22px; } }
+/* the 5-column card must never spill into the buttons: tighter labels (no percentages) below 1240px, clipped labels as a last resort */
+@media (max-width: 1240px) { .tl .pc { display: none; } .tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); } .tl .tn { overflow: hidden; text-overflow: ellipsis; } }
 @media (max-width: 1080px) { .wordmark { height: 44px; } .tl .pc { display: none; } .tl { font-size: 12px; } .trow2 { grid-template-columns: 124px minmax(0, 1fr); gap: 10px; } .tiles { gap: 0 6px; } .big { font-size: 19px; } .tile b { font-size: 15px; } }
 
 .wm-dark { display: none; }
@@ -295,10 +297,12 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 .help:hover::after, .help:focus::after { opacity: 1; visibility: visible; }
 
 /* "x items" sits at the right of the amount, small; the amount gets all the room left of it */
-.stat:has(.cnt) { grid-template-columns: auto 1fr auto; }
+/* the amount keeps its own line (never overlapped); the item count sits under it */
+.stat:has(.cnt) { grid-template-columns: auto minmax(0, 1fr); }
 .stat:has(.cnt) .l { grid-column: 2 / -1; }
-.stat:has(.cnt) b { grid-row: 2; grid-column: 1 / 3; white-space: nowrap; overflow-wrap: normal; }
-.stat .cnt { grid-row: 2; grid-column: 3; align-self: end; padding: 0 0 3px 8px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.stat:has(.cnt) b { grid-row: 2; grid-column: 1 / -1; white-space: nowrap; overflow-wrap: normal; overflow: hidden; text-overflow: ellipsis; }
+.stat .cnt { grid-row: 3; grid-column: 1 / -1; padding: 0; color: var(--muted); font-size: 11px; line-height: 14px; white-space: nowrap; }
+.stat .xtra { font-size: 11px; margin-left: 2px; }
 .stat .l { white-space: nowrap; }
 .stat:has(.help) .l { font-size: 12px; }
 
