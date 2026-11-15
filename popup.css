@@ -415,3 +415,14 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 .plankey input { flex: 1; margin: 0; }
 .plantele { margin-top: 12px; align-items: flex-start; }
 .banner.plan { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+/* ---- first-run tour ---- */
+.tcatch { position: fixed; inset: 0; z-index: 94; }   /* only blocks clicks: the dimming is the spotlight's shadow */
+.tspot { position: fixed; z-index: 95; display: none; border-radius: 10px; pointer-events: none; box-shadow: 0 0 0 100vmax rgba(2, 11, 30, .62); outline: 2px solid var(--accent); transition: left .2s, top .2s, width .2s, height .2s; }
+.tspot ~ .tcard { z-index: 96; }
+.tcard { position: fixed; z-index: 96; width: 320px; max-width: calc(100vw - 24px); padding: 16px 18px; border: 1px solid var(--accent); border-radius: 10px; background: var(--panel); color: var(--text); box-shadow: 0 12px 40px rgba(0, 0, 0, .45); }
+.tcard h3 { margin: 2px 0 6px; font-size: 17px; }
+.tcard p { margin: 0 0 12px; font-size: 14px; line-height: 1.45; }
+.tstep { font-size: 11px; letter-spacing: .08em; color: var(--accent); font-weight: 600; }
+.tbtns { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tbtns span { display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }

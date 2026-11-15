@@ -83,3 +83,4 @@ Newest first. Dates are when the change was made.
 - Internal 90-day `pending` fetch (background priority) so the pending estimate does not depend on the period.
 - Header card never overflows into the buttons (no percentages below 1240px); Pending/Returned item count sits under the amount.
 - v5.0.0: Free / Pro plans (14-day no-card trial, license keys, signed server answers), plan card in Settings, upgrade pop-up, Pro gating in popup and worker, `tools/package.py`, store listing in `store/`.
+- v5.0.0: first-run guided tour (11 steps over the real controls, `TOUR` in popup.js, `settings.tourDone`; Settings -> Take the tour runs it again; the website demo offers it from the orange bar).

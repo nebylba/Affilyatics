@@ -50,3 +50,6 @@ Backend checked by hand with curl and signed fake Freemius webhooks.
 - Freemius webhook field names follow its documentation, not a captured real event: verify with the first test purchase.
 - A user can patch the extension locally to unlock Pro: unavoidable for a free extension.
 - `PLAN_CFG.api` is baked into the extension: moving the server to another domain needs a new store version.
+
+## First-run tour
+`TOUR` (popup.js) lists the steps; `drawTour()` spotlights the real element (`getBoundingClientRect`) and skips steps whose target is not on screen; `maybeStartTour()` starts it once when the dashboard is showing data and `settings.tourDone` is unset; `startAffilyaticsTour()` is exposed for the website demo. Texts differ for Free and Pro.

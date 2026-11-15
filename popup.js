@@ -771,6 +771,50 @@ function storesSettingsHTML() {
   }).join('');
   return `<p class="muted small" style="margin:0 0 10px">Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.</p><div class="sgrid">${cards}</div>`;
 }
+// ---- first-run tour: a short guided walk over the real controls (Settings -> "Take the tour" runs it again) --------------
+// view.tour = index of the step on screen, or null. Steps whose target is not on screen are skipped.
+const TOUR = [
+  { sel: null, title: 'Welcome to Affilyatics', text: () => 'A 30-second tour of what you can do here. Everything you need to know with one click.' },
+  { sel: '#storefilter', title: 'Your stores', text: () => 'Every store of your Associates account. Click the menu to see one store, or tick several to combine them. The countries follow your choice.' },
+  { sel: '#headtotal', title: 'Total income', text: () => 'Commissions, bounties, bonuses, Creator Connections and Creator Rewards in one card. Each country stays in its own currency, nothing is converted. Hover a figure to see it by country.' },
+  { sel: '.stats', title: 'Clicks, orders, shipments', text: () => 'Your key numbers for the period. Pending shipments and returned items are estimates, marked with "~": hover the "?" to see how they are worked out.' },
+  { sel: '.toolbar .when', title: 'Pick a period', text: () => (isProNow() ? 'Today, the last 7 or 30 days, quarters, years, or any dates you choose with the calendar.' : 'Today, yesterday, this month or last month. Pro adds the last 7 and 30 days, quarters, years and any custom range.') },
+  { sel: '.locwrap', title: 'Countries and tags', text: () => (isProNow() ? 'Choose the countries to show. The Tags filter narrows everything to the tracking IDs you pick. Each filter only offers what the one before it leaves.' : 'Choose the countries to show. The Tags filter (Pro) narrows everything to one tracking ID, with the real daily clicks per tag.') },
+  { sel: '#chartbox', title: 'The chart', text: () => 'Earnings and any metrics you choose, by day, week or month. Hover for exact figures. "Current day performance" below shows today as it happens.' },
+  { sel: '#bell', title: 'Alerts', text: () => (isProNow() ? 'New orders, commissions, bonuses and Creator Rewards tiers land here, and as desktop pop-ups if you turn them on.' : 'New orders, sign-outs and Amazon report problems land here. Pro adds every alert type and desktop pop-ups.') },
+  { sel: '#refresh', title: 'Always up to date', text: () => `Figures refresh by themselves while Chrome is open (every ${FEATURES[isProNow() ? 'pro' : 'free'].autoRefreshMin} minutes on your plan). Press Refresh to check Amazon right now.` },
+  { sel: '#planchip', title: 'Your plan', text: () => (isProNow() ? 'This shows your plan. Click it to manage it.' : 'You are on Free. Locked items show a small lock: you can try all of them with a 14-day Pro trial, no credit card.') },
+  { sel: '#gear', title: 'Settings', text: () => 'Choose countries and stores, alerts and your plan. You can take this tour again from here.' }
+];
+const tourVisible = (st) => { if (!st.sel) return true; const el = document.querySelector(st.sel); return !!(el && el.getBoundingClientRect && (el.getBoundingClientRect().width > 0)); };
+function endTour(done = true) { view.tour = null; if (done && !settings.tourDone) saveSettings({ tourDone: true }, false); const t = $('#tour'); if (t) t.innerHTML = ''; }
+function startTour() { closePops(); view.upsell = null; view.showSettings = false; view.tour = 0; render(); }
+function drawTour() {
+  const host = $('#tour'); if (!host) return;
+  if (view.tour == null) { host.innerHTML = ''; return; }
+  const steps = TOUR.filter(tourVisible);
+  if (!steps.length || view.tour >= steps.length) { endTour(); return; }
+  const i = view.tour, st = steps[i], last = i === steps.length - 1;
+  host.innerHTML = `<div class="tcatch"></div><div id="tourspot" class="tspot"></div><div id="tourcard" class="tcard" role="dialog" aria-label="Tour: ${esc(st.title)}">
+    <div class="tstep">${i + 1} / ${steps.length}</div><h3>${esc(st.title)}</h3><p>${esc(st.text())}</p>
+    <div class="tbtns"><button type="button" class="linkbtn" data-tour="skip">${last ? 'Close' : 'Skip tour'}</button><span>${i ? '<button type="button" data-tour="back">Back</button>' : ''}${last ? `${!isProNow() && trialAvailable() ? '<button type="button" data-tour="trial">Start my free trial</button>' : ''}<button type="button" class="primary" data-tour="skip">Done</button>` : `<button type="button" class="primary" data-tour="next">${i ? 'Next' : 'Start the tour'}</button>`}</span></div></div>`;
+  const spot = $('#tourspot'), card = $('#tourcard'), el = st.sel ? document.querySelector(st.sel) : null;
+  if (el && el.scrollIntoView && !el.closest('.top')) el.scrollIntoView({ block: 'center' });
+  const r = el ? el.getBoundingClientRect() : null, pad = 6;
+  if (r) { Object.assign(spot.style, { outline: '', display: 'block', left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' }); }
+  else Object.assign(spot.style, { display: 'block', left: window.innerWidth / 2 + 'px', top: window.innerHeight / 2 + 'px', width: '0px', height: '0px', outline: 'none' });   // welcome step: no target, just dim the page
+  const cw = card.offsetWidth || 320, ch = card.offsetHeight || 160, W = window.innerWidth, H = window.innerHeight;
+  let left, top;
+  if (!r) { left = (W - cw) / 2; top = Math.max(16, (H - ch) / 2); }
+  else { left = Math.min(Math.max(12, r.left + r.width / 2 - cw / 2), W - cw - 12); top = r.bottom + pad + 12 + ch <= H ? r.bottom + pad + 12 : Math.max(12, r.top - pad - 12 - ch); }
+  card.style.left = left + 'px'; card.style.top = top + 'px';
+}
+// the very first time (and only when the dashboard is really on screen): offer the tour
+function maybeStartTour() {
+  if (settings.tourDone || view.tourShown || view.tour != null || view.showSettings || status.signedOut || !accounts.length || isLoading()) return;
+  view.tourShown = true; view.tour = 0;
+}
+
 // ---- plan card (Settings), upgrade pop-up, trial banner, header chip --------------------------------------------
 function planWords() {
   const i = planInfo(license), d = (n) => `${n} day${n === 1 ? '' : 's'}`;
@@ -836,7 +880,7 @@ function settingsHTML() {
       ${isProNow() ? `<label class="nt desk"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Also show desktop alerts <span class="muted small">(Chrome will ask for permission)</span></span></label>` : `<label class="nt desk locked" data-lock="desktop"><input type="checkbox" disabled><span>Also show desktop alerts ${PRO_PILL}</span></label>`}
       ${view.notifMsg ? `<p class="small" style="color:var(--bad);margin:8px 0 0">${esc(view.notifMsg)}</p>` : ''}
       <p class="muted small" style="margin:8px 0 0">Checked every few minutes while Chrome is open. The first load never creates alerts.</p></div>
-    <div class="foot"><button type="button" id="reset">Reset to defaults</button><button type="button" id="done" class="primary">Done</button></div>
+    <div class="foot"><button type="button" id="tourstart">Take the tour</button><button type="button" id="reset">Reset to defaults</button><button type="button" id="done" class="primary">Done</button></div>
   </section>`;
 }
 
@@ -1013,6 +1057,7 @@ function render() {
   $('#notifpanel').innerHTML = view.notifOpen ? notifPanelHTML() : '';
   const sf = $('#storefilter'); if (sf) sf.innerHTML = view.showSettings || status.signedOut ? '' : storeFilterHTML();
   $('#headtotal').innerHTML = view.showSettings || status.signedOut ? '' : totalCardHTML(tagAgg() || collect('day'));
+  maybeStartTour();
   const main = $('#main');
   main.innerHTML = view.showSettings ? settingsHTML() : mainHTML();
   if (!view.showSettings && !status.signedOut) {
@@ -1023,8 +1068,10 @@ function render() {
       wireChart(pts, chartSeries(), cur, group);
     }
   }
+  drawTour();
 }
 
+if (typeof window !== 'undefined') window.startAffilyaticsTour = () => startTour();
 let timer;
 const renderSoon = () => { clearTimeout(timer); timer = setTimeout(render, 120); };
 
@@ -1076,6 +1123,13 @@ document.addEventListener('click', async (e) => {
   const t = e.target;
   const q = (s) => t.closest(s);
   if (anyPopOpen() && !q('.dd, .npanel, #bell')) { closePops(); render(); }
+  if (q('[data-tour]')) {
+    const k = q('[data-tour]').dataset.tour;
+    if (k === 'next') { view.tour += 1; render(); } else if (k === 'back') { view.tour = Math.max(0, view.tour - 1); render(); }
+    else if (k === 'trial') { endTour(); planAction('trial'); } else endTour();
+    return;
+  }
+  if (q('#tourstart')) { startTour(); return; }
   if (t.classList && t.classList.contains('modalbg') || q('[data-upclose]')) { view.upsell = null; view.planMsg = null; render(); return; }
   if (q('[data-lock]')) { e.preventDefault(); const k = q('[data-lock]').dataset.lock; openUpsell(k === 'periods' ? 'periods' : k); return; }
   if (q('#planchip')) { closePops(); view.upsell = null; view.showSettings = true; render(); return; }
@@ -1227,7 +1281,9 @@ document.addEventListener('mouseover', (e) => {
 });
 document.addEventListener('mouseleave', hideBd);
 
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (view.upsell) { view.upsell = null; render(); } else if (anyPopOpen()) { closePops(); render(); } } });
+if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('resize', () => { if (view.tour != null) drawTour(); });
+document.addEventListener('keydown', (e) => { if (view.tour != null) { if (e.key === 'Escape') { endTour(); return; } if (e.key === 'ArrowRight' || e.key === 'Enter') { view.tour += 1; render(); return; } if (e.key === 'ArrowLeft') { view.tour = Math.max(0, view.tour - 1); render(); return; } }
+  if (e.key === 'Escape') { if (view.upsell) { view.upsell = null; render(); } else if (anyPopOpen()) { closePops(); render(); } } });
 
 chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
