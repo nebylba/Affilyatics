@@ -219,10 +219,10 @@ function chartSVG(pts, vis, cur, group) {
   let body = '';
   // days Amazon's report is missing (we show the last known values): orange band
   const heldBw = Math.max(6, Math.min(40, step * 0.9));
-  body += pts.map((p, i) => (p.held ? `<rect class="heldband" x="${(X(i) - heldBw / 2).toFixed(1)}" y="${mt}" width="${heldBw.toFixed(1)}" height="${ph}" rx="1"/>` : '')).join('');
+  body += pts.map((p, i) => (p.held ? `<rect class="heldband" x="${(X(i) - heldBw / 2).toFixed(1)}" y="${mt}" width="${heldBw.toFixed(1)}" height="${ph}" rx="2"/>` : '')).join('');
   for (const s of vis.filter((x) => x.bar)) {
     const bw = Math.max(1, Math.min(28, step * 0.7));
-    body += pts.map((p, i) => `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${Y(s, p[s.id]).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, mt + ph - Y(s, p[s.id])).toFixed(1)}" rx="1" fill="var(--s-${s.id})" opacity=".85"/>`).join('');
+    body += pts.map((p, i) => `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${Y(s, p[s.id]).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, mt + ph - Y(s, p[s.id])).toFixed(1)}" rx="2" fill="var(--s-${s.id})" opacity=".85"/>`).join('');
   }
   for (const s of vis.filter((x) => !x.bar)) {
     const xs = pts.map((_, i) => X(i)), ys = pts.map((p) => Y(s, p[s.id]));
@@ -589,7 +589,7 @@ function settingsHTML() {
 
 // ---- popovers: period list, date picker, notifications ----------------------------------------------
 const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-const ICON_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
+const ICON_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
 const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = false; };
 const anyPopOpen = () => view.ddOpen || view.perOpen || view.calOpen || view.notifOpen || view.locOpen;
 const fmtDay = (s, withYear) => parseYmd(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}) });
