@@ -583,10 +583,10 @@ function storeFilterHTML() {
   if (!accounts.length) return '';
   const shown = shownStores(), main = shown[0] || accounts[0], others = shown.length - 1;
   const tot = storeTotals();
+  const sel = new Set(view.stores ? [...view.stores] : accounts.map((a) => a.id));
+  const rows = accounts.map((a) => `<div class="mi"><input type="checkbox" data-storebox="${esc(a.id)}" aria-label="Add or remove ${esc(a.id)}" ${sel.has(a.id) ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="${esc(a.id)}" title="Show only ${esc(a.id)}"><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span></button><b class="muted small">${esc(amountText(tot[a.id]))}</b></div>`).join('');
   const menu = view.storeOpen
-    ? `<div class="menu storemenu" role="listbox" aria-label="Store"><div class="mhead"><span class="muted small">Which store are you looking at?</span></div>
-        <button type="button" class="mi pi ${view.stores ? '' : 'sel'}" role="option" aria-selected="${!view.stores}" data-store-pick=""><span class="chk">${view.stores ? '' : '✓'}</span><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button>
-        ${accounts.map((a) => { const on = view.stores && view.stores.has(a.id); return `<button type="button" class="mi pi ${on ? 'sel' : ''}" role="option" aria-selected="${!!on}" data-store-pick="${esc(a.id)}"><span class="chk">${on ? '✓' : ''}</span><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span><em>${esc(amountText(tot[a.id]))}</em></button>`; }).join('')}</div>`
+    ? `<div class="menu storemenu" role="group" aria-label="Stores"><div class="mi allrow"><input type="checkbox" data-storeall="1" aria-label="Select or clear all stores" ${sel.size === accounts.length ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="" title="Show all stores"><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button><b class="muted">${sel.size}/${accounts.length}</b></div><div class="msep"></div>${rows}<p class="muted small" style="margin:8px 8px 4px">Click a name to see only that store · tick boxes to combine.</p></div>`
     : '';
   return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sline"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more" title="${others} other store${others > 1 ? 's' : ''}">+${others}</span>` : ''}</span>${CHEVRON}</button>${menu}</div>`;
 }
@@ -1079,6 +1079,14 @@ document.addEventListener('change', async (e) => {
     const cur = new Set(selLocales());
     if (t.checked) cur.add(t.dataset.loc); else if (cur.size > 1) cur.delete(t.dataset.loc);
     setSel(cur, true);
+  } else if (t.dataset.storebox !== undefined || t.dataset.storeall) {
+    const ids = accounts.map((a) => a.id);
+    let cur = new Set(view.stores ? [...view.stores] : ids);
+    if (t.dataset.storeall) cur = t.checked ? new Set(ids) : new Set(ids.slice(0, 1));              // unticking "All" keeps the main store only
+    else if (t.checked) cur.add(t.dataset.storebox); else if (cur.size > 1) cur.delete(t.dataset.storebox);   // at least one store stays
+    view.stores = cur.size === ids.length ? null : cur;
+    const locs = new Set(accounts.filter((a) => cur.has(a.id)).flatMap((a) => a.locales || []).filter((l) => enabledCountries().includes(l)));
+    setSel(view.stores && locs.size && locs.size < enabledCountries().length ? locs : null, true);   // the countries follow the stores (all stores = all countries)
   } else if (t.dataset.tagbox !== undefined) {
     const names = tagList().map((x) => x.name), cur = new Set(view.tags || names);
     if (t.checked) cur.add(t.dataset.tagbox); else cur.delete(t.dataset.tagbox);

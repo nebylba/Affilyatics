@@ -4,6 +4,9 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Store filter uses the Countries click logic**: a checkbox per store (and "All stores") to combine stores, and a click on the
+  name to see only that store; the menu stays open while you tick. At least one store stays on, the countries follow the chosen
+  stores, and unticking "All stores" keeps the main store. The Tags filter already worked this way.
 - **Cascade Store -> Countries -> Tags**: each filter only offers what the previous one leaves. With a store chosen, the
   Countries menu greys out the countries it does not sell in (they cannot be picked, and "All countries" means all of the
   store's countries). When the tracking-ID data of the new scope has arrived, tags that no longer exist in it are dropped from
