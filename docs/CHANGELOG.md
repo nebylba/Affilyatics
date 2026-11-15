@@ -4,6 +4,10 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Refresh load fix**: the internal 90-day `pending` fetch is now refreshed every 30 min instead of every 5 min
+  (it doubled the API requests of every cycle: 18 instead of 9 per 5 minutes with 9 store x country entries).
+- Refresh rules documented in docs/ARCHITECTURE.md (daily numbers and Creator Rewards every 5 min for every store and
+  country, Refresh forces them, Connections 6 h, tables 10 min).
 - **Corner radius reduced** (about 60% of the original: cards 10px -> 6px, controls 8px -> 5px, pills and dots 5px, small items 3px, chart bars 2px).
 - **Amazon report gap protection**: ledger of recent days, held rows, orange chart band with tooltip note, banner with
   "Open Amazon report" / "Copy details", Dates-tab badge, `dataissue` notifications (missing / back). See

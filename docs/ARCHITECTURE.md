@@ -25,8 +25,11 @@ The popup never talks to Amazon. It asks the worker to `load` a period and rende
 - **Creator Connections**: `/reporting/summary` with `type=connections`. **Creator Rewards**: HTML scrape (US only).
 - **Rate limits**: API requests run strictly one after another (3 in parallel gives HTTP 429, the pause only grows
   after a 429). HTML pages load in parallel with them. CA uses its own host (`associates.amazon.ca`).
-- **Freshness**: each entry is refreshed only when due. The interval adapts to Amazon's `last_updated` stamp; quiet
-  countries and slow data are checked rarely. Entries younger than the due time are not re-downloaded.
+- **Freshness**: each entry is refreshed only when due (`dueAfterMs`). Current-period daily numbers of every store x
+  country (quiet countries too) and Creator Rewards are due after 4.5 min, so every 5-minute alarm refreshes them;
+  Creator Connections 6 h (12 h for finished periods); tag/category/product tables 10 min; finished periods 60 min;
+  the internal 90-day `pending` window 30 min (it changes slowly and would otherwise double the API calls of each
+  cycle). The Refresh button forces daily numbers, Creator Rewards and the open tables, quiet countries included.
 - **Derivation**: a period inside an already fresh wider period of the same store and country (today inside this
   month, this month inside this quarter, the 90-day `pending` window inside this year...) is filtered locally with
   `deriveFromWider`, no request.

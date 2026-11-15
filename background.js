@@ -652,7 +652,9 @@ async function load(req) {
     for (const loc of req.locales) for (const a of accts) {
       if (!a.locales.includes(loc)) continue;
       const key = `${a.id}|${loc}|pending|day`, e = cache[key];
-      if (!req.force && isFresh('day', e, pRange)) continue;
+      // the 90-day window changes slowly: re-fetch every 30 min, not every 5 (it would double the API calls of each cycle)
+      const pFresh = e && e.v === CACHE_VERSION && e.range[0] === pRange[0] && e.range[1] === pRange[1] && Date.now() - e.at < 30 * 60000;
+      if (!req.force && pFresh) continue;
       const d = req.force ? null : deriveFromWider(cache, a.id, loc, 'day', pRange);
       if (d) { cache[key] = d; derivedAny = true; continue; }
       tasks.push({ key, acct: a.id, base: a.base, loc, dim: 'day', range: pRange, pending: true, force: !!req.force });
