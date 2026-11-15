@@ -4,6 +4,10 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Tags filter**: the "Tag filter on" banner is replaced by a "?" next to the filter. It fades between its normal and the
+  accent colour while a tag is unselected, and its tooltip explains that the chart and Dates tab cannot be split by tag.
+  Unticking "All tags" (or the last tag) now works: nothing selected shows zero totals ("No tags"); it is not restored
+  on reopening.
 - **Store filter under the logo** (view-only): shows the main store id and "+N others"; clicking lists every store (account,
   countries, income) and picking one shows that store alone. The countries follow the store, and only that store is
   requested from the worker (`load` message gets `accounts`). Notifications and the 5-minute refresh still cover every store.

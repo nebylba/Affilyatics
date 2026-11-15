@@ -331,5 +331,12 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 .scrow b { font-weight: 600; }
 .scrow small { color: var(--muted); font-size: 12px; }
 .ddsum.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
-.tagnote { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); font-size: 13px; color: var(--muted); }
-.tagnote b { color: var(--text); }
+/* "?" next to the Tags filter: fades between its normal and the accent colour while a tag filter is on */
+.taghelp { margin-left: 2px; }
+.taghelp::after { right: auto; left: -8px; }
+.taghelp.pulse { animation: helpfade 1.8s ease-in-out infinite; }
+@keyframes helpfade {
+  0%, 100% { color: var(--muted); border-color: var(--muted); background: transparent; }
+  50% { color: #14244a; border-color: var(--accent); background: var(--accent); }
+}
+@media (prefers-reduced-motion: reduce) { .taghelp.pulse { animation: none; color: var(--accent); border-color: var(--accent); } }

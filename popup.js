@@ -539,13 +539,15 @@ function tagList() {
 }
 function tagsDropdownHTML() {
   const list = tagList();
-  const label = !view.tags ? 'All tags' : view.tags.size === 1 ? [...view.tags][0] : `${view.tags.size} tags`;
+  const label = !view.tags ? 'All tags' : view.tags.size === 0 ? 'No tags' : view.tags.size === 1 ? [...view.tags][0] : `${view.tags.size} tags`;
+  const total = list.length;
   const items = list.map((t) => `<div class="mi"><input type="checkbox" data-tagbox="${esc(t.name)}" aria-label="Add or remove ${esc(t.name)}" ${!view.tags || view.tags.has(t.name) ? 'checked' : ''}><button type="button" class="lonly" data-tagonly="${esc(t.name)}" title="Show only ${esc(t.name)}"><span>${esc(t.name)}</span></button><b class="muted small">${fmtNum(t.clicks)} clicks</b></div>`).join('');
   const body = list.length ? items : `<p class="muted small" style="padding:8px">${isLoading() ? 'Loading tracking IDs…' : 'No tracking IDs for this period.'}</p>`;
   const menu = view.tagOpen
-    ? `<div class="menu tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>cards, total income, countries table and Tracking IDs</b>. The chart and Dates tab cannot be split by tag.</p></div>`
+    ? `<div class="menu tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>cards, total income, countries table and Tracking IDs</b>.</p></div>`
     : '';
-  return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div>`;
+  const help = (view.tags ? `Tag filter on: ${view.tags.size} of ${total} tags. ` : 'Tags filter. ') + 'The cards, total income and countries table show only the selected tags. The chart and the Dates tab cannot be split by tag: Amazon reports daily totals for all tags together.';
+  return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div><span class="help taghelp ${view.tags ? 'pulse' : ''}" tabindex="0" data-tip="${esc(help)}">?</span>`;
 }
 
 // Multi-select dropdown (checkboxes) next to the period select: which series the chart shows.
@@ -775,8 +777,7 @@ function mainHTML() {
   const err = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
   if (loadingOnly) return nav + err + '<section class="panel state"><p class="muted">Loading your Amazon Associates data…</p></section>';
   const cardRows = tagAgg() || dayRows;
-  const tagNote = tagMode() ? `<div class="tagnote">Tag filter on: <b>${view.tags.size}</b> tag${view.tags.size > 1 ? 's' : ''}. The cards, total income and countries table show only these tags. The chart and the Dates tab cannot be split by tag (Amazon reports daily totals for all tags together). <button type="button" class="linkbtn" data-tagallbtn="1">Show all tags</button></div>` : '';
-  return kpiHTML(cardRows) + nav + tagNote + heldBannerHTML(dayRows) + err + chartHTML(dayRows) + tableHTML(dayRows, cardRows);
+  return kpiHTML(cardRows) + nav + heldBannerHTML(dayRows) + err + chartHTML(dayRows) + tableHTML(dayRows, cardRows);
 }
 
 // Filters are remembered: closing the popup and reopening it brings back the same view.
@@ -800,7 +801,7 @@ function restoreView(v) {
   if (Array.isArray(v.sel)) { const l = v.sel.filter((c) => enabledCountries().includes(c)); view.sel = l.length && l.length < enabledCountries().length ? new Set(l) : null; }
   else if ('sel' in v) view.sel = null;
   if (Array.isArray(v.stores)) { const l = v.stores.filter((id) => accounts.some((a) => a.id === id)); view.stores = l.length && l.length < accounts.length ? new Set(l) : null; }
-  if (Array.isArray(v.tags) && v.tags.length) view.tags = new Set(v.tags.map(String));
+  if (Array.isArray(v.tags) && v.tags.length) view.tags = new Set(v.tags.map(String));     // (an empty selection is not restored: you would reopen to a blank screen)
   savedView = JSON.stringify(v);
 }
 
@@ -964,9 +965,9 @@ document.addEventListener('change', async (e) => {
     setSel(cur, true);
   } else if (t.dataset.tagbox !== undefined) {
     const names = tagList().map((x) => x.name), cur = new Set(view.tags || names);
-    if (t.checked) cur.add(t.dataset.tagbox); else if (cur.size > 1) cur.delete(t.dataset.tagbox);
+    if (t.checked) cur.add(t.dataset.tagbox); else cur.delete(t.dataset.tagbox);
     view.tags = names.every((n) => cur.has(n)) ? null : cur; render();
-  } else if (t.dataset.tagall) { view.tags = null; render();
+  } else if (t.dataset.tagall) { view.tags = t.checked ? null : new Set(); render();     // unticking "All tags" = none selected
   } else if (t.dataset.metric) {
     view.metrics.has(t.dataset.metric) ? view.metrics.delete(t.dataset.metric) : view.metrics.add(t.dataset.metric);
     render();
