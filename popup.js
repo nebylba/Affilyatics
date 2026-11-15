@@ -56,7 +56,7 @@ const currentSub = () => (subOptions().some(([id]) => id === view.sub) ? view.su
 const wantedDims = () => {
   const s = currentSub();
   const d = s === 'countries' || s === 'dates' ? ['day', 'connections', 'rewards'] : ['day', 'connections', 'rewards', s];
-  if (view.tagOpen && !d.includes('tag')) d.push('tag');            // the Tags filter needs the tracking-ID list
+  if ((view.tagOpen || view.tags) && !d.includes('tag')) d.push('tag');   // the Tags filter needs the tracking-ID table
   return d;
 };
 
@@ -298,7 +298,8 @@ function moneyInline(byCur, k) {
 // Right: one fixed column per income source (always all of them, empty ones dimmed), same structure in each.
 // Amounts and shares are in the main currency; other currencies go on the small line (full list on hover).
 function totalCardHTML(dayRows) {
-  const { byCur } = sumByCurrency(dayRows, collect('income'), collect('rewards'));
+  const byTag = tagMode();
+  const { byCur } = sumByCurrency(dayRows, byTag ? [] : collect('income'), byTag ? [] : collect('rewards'));
   const curs = Object.keys(byCur).sort((a, b) => byCur[b].total - byCur[a].total);
   const main = curs[0];
   const t = main ? byCur[main] : null;
@@ -308,7 +309,7 @@ function totalCardHTML(dayRows) {
   const bar = t && t.total > 0
     ? `<div class="stack">${SOURCES.map(([id]) => (t[id] > 0 ? `<span style="flex:${t[id]};background:var(--s-${id})"></span>` : '')).join('')}</div>`
     : '<div class="stack"></div>';
-  const loc = byLocation(dayRows, collect('income'), collect('rewards'));
+  const loc = byLocation(dayRows, byTag ? [] : collect('income'), byTag ? [] : collect('rewards'));
   const tiles = SOURCES.map(([id, label]) => {
     const has = t && t[id] > 0;
     const share = has && t.total > 0 ? `<span class="pc">${Math.round(t[id] / t.total * 100)}%</span>` : '';
@@ -445,7 +446,7 @@ function kpiHTML(dayRows) {
   const stat = (label, value, id, cnt, fmt) => `<div class="stat"${id ? ` style="--c:var(--s-${id})"` : ''}${bdAttr(label, loc, fmt || (id === 'conversion' ? bdConv : bdNum(id === 'returned' ? 'returned' : id)))}>${id ? '<i></i>' : ''}<span class="l">${label}</span><b>${value}</b>${cnt ? `<span class="cnt">${cnt}</span>` : ''}</div>`;
   return `<section class="stats">
       ${stat('Clicks', fmtNum(all.clicks), 'clicks')}${stat('Ordered', fmtNum(all.ordered), 'ordered')}${stat('Shipped', fmtNum(all.shipped), 'shipped')}
-      ${stat('Conversion', pct(all.ordered, all.clicks), 'conversion')}${pendingStat()}${returnedStat(dayRows, loc)}
+      ${stat('Conversion', pct(all.ordered, all.clicks), 'conversion')}${tagMode() ? statOff('Pending shipments', 'pending') + statOff('Returned items', 'returned') : pendingStat() + returnedStat(dayRows, loc)}
     </section>`;
 }
 
@@ -476,13 +477,33 @@ function locsDropdownHTML() {
   const all = enabledCountries(), sel = selLocales();
   const items = all.map((c) => `<div class="mi"><input type="checkbox" data-loc="${c}" aria-label="Add or remove ${esc(LOCALES[c].label)}" ${sel.includes(c) ? 'checked' : ''}><button type="button" class="lonly" data-only="${c}" title="Show only ${esc(LOCALES[c].label)}">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></button><b class="muted">${LOCALES[c].cur}</b></div>`).join('');
   const menu = view.locOpen
-    ? `<div class="menu menuright" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}</div>`
+    ? `<div class="menu" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}</div>`
     : '';
   const flags = sel.length === all.length ? 'All countries' : sel.length === 1 ? LOCALES[sel[0]].label : `${sel.length} countries`;
   const shown = sel.length <= 5 ? sel.map((c) => flagSVG(c)).join('') : '';
   return `<div class="dd"><button type="button" class="ddsum" data-dd="locs" aria-haspopup="true" aria-expanded="${view.locOpen}"><span class="dots flags">${shown}</span>${esc(flags)} ${CHEVRON}</button>${menu}</div>`;
 }
 
+
+// ---- Tag filter: numbers for the chosen tags ----------------------------------------------------------
+// Amazon reports sales per tag only as period totals (its daily numbers are not split by tag), so with a tag filter the cards,
+// the total income and the countries table use the tracking-ID table; the chart and the Dates tab keep showing every tag.
+function tagAgg() {
+  if (!view.tags) return null;
+  const out = []; let seen = false;
+  const end = curRange()[1];
+  for (const loc of selLocales()) for (const a of activeAccounts()) {
+    if (!(a.locales || []).includes(loc)) continue;
+    const e = entry(a.id, loc, 'tag'); if (!e) continue;
+    seen = true;
+    const t = { name: end, clicks: 0, ordered: 0, shipped: 0, returned: 0, orderedRevenue: 0, revenue: 0, earnings: 0, bounty: 0, bonus: 0, loc, acct: a.id, cur: LOCALES[loc].cur };
+    for (const r of e.rows) if (view.tags.has(r.name)) for (const f of FIELDS) t[f] += r[f] || 0;
+    out.push(t);
+  }
+  return seen ? out : null;          // null = tracking IDs not loaded yet: show everything meanwhile
+}
+const tagMode = () => !!view.tags && tagAgg() !== null;
+const statOff = (label, id) => `<div class="stat" style="--c:var(--s-${id})"><i></i><span class="l">${label}</span><b><span class="muted">—</span></b></div>`;
 
 // ---- Store filter (under the logo) and Tags filter (after Countries) ---------------------------------
 const accountLabel = (a) => { const hit = Object.entries(SEPARATE_SITES).find(([, u]) => u === a.base); return hit ? `${LOCALES[hit[0]].label} account` : 'US account'; };
@@ -508,7 +529,7 @@ function storeFilterHTML() {
         <button type="button" class="mi pi ${view.stores ? '' : 'sel'}" role="option" aria-selected="${!view.stores}" data-store-pick=""><span class="chk">${view.stores ? '' : '✓'}</span><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button>
         ${accounts.map((a) => { const on = view.stores && view.stores.has(a.id); return `<button type="button" class="mi pi ${on ? 'sel' : ''}" role="option" aria-selected="${!!on}" data-store-pick="${esc(a.id)}"><span class="chk">${on ? '✓' : ''}</span><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span><em>${esc(amountText(tot[a.id]))}</em></button>`; }).join('')}</div>`
     : '';
-  return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more">+${others} other${others > 1 ? 's' : ''}</span>` : ''}${CHEVRON}</button>${menu}</div>`;
+  return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sline"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more">+${others} other${others > 1 ? 's' : ''}</span>` : ''}</span>${CHEVRON}</button>${menu}</div>`;
 }
 function tagList() {
   const m = new Map();
@@ -522,9 +543,9 @@ function tagsDropdownHTML() {
   const items = list.map((t) => `<div class="mi"><input type="checkbox" data-tagbox="${esc(t.name)}" aria-label="Add or remove ${esc(t.name)}" ${!view.tags || view.tags.has(t.name) ? 'checked' : ''}><button type="button" class="lonly" data-tagonly="${esc(t.name)}" title="Show only ${esc(t.name)}"><span>${esc(t.name)}</span></button><b class="muted small">${fmtNum(t.clicks)} clicks</b></div>`).join('');
   const body = list.length ? items : `<p class="muted small" style="padding:8px">${isLoading() ? 'Loading tracking IDs…' : 'No tracking IDs for this period.'}</p>`;
   const menu = view.tagOpen
-    ? `<div class="menu tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>Tracking IDs</b> table. Amazon's daily totals cannot be split by tag.</p></div>`
+    ? `<div class="menu tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>cards, total income, countries table and Tracking IDs</b>. The chart and Dates tab cannot be split by tag.</p></div>`
     : '';
-  return `<div class="dd"><button type="button" class="ddsum" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the Tracking IDs table"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div>`;
+  return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div>`;
 }
 
 // Multi-select dropdown (checkboxes) next to the period select: which series the chart shows.
@@ -549,10 +570,11 @@ function mergeRows(rows, keyFn) {
   return [...m.values()].sort((a, b) => b.earnings - a.earnings || b.orderedRevenue - a.orderedRevenue || b.clicks - a.clicks);
 }
 
-function tableHTML(dayRows) {
+function tableHTML(dayRows, cardRows) {
   const sub = currentSub();
-  const incomeAll = collect('income');
-  const rewardsAll = collect('rewards');
+  const byTag = tagMode();
+  const incomeAll = byTag ? [] : collect('income');
+  const rewardsAll = byTag ? [] : collect('rewards');
   const tabs = `<div class="subtabs">${subOptions().map(([id, l]) => `<button type="button" data-sub="${id}" class="${id === sub ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const empty = (msg) => `<p class="muted" style="padding:16px 0">${msg}</p>`;
   const wait = isLoading() ? 'Loading…' : 'No data for this period.';
@@ -560,7 +582,7 @@ function tableHTML(dayRows) {
 
   if (sub === 'countries') {
     const rows = selLocales().map((loc) => {
-      const r = sumByCurrency(dayRows.filter((x) => x.loc === loc), incomeAll.filter((x) => x.loc === loc), rewardsAll.filter((x) => x.loc === loc));
+      const r = sumByCurrency((cardRows || dayRows).filter((x) => x.loc === loc), incomeAll.filter((x) => x.loc === loc), rewardsAll.filter((x) => x.loc === loc));
       const t = Object.values(r.byCur)[0] || { orderedRevenue: 0, earnings: 0, bounty: 0, bonus: 0, connections: 0, rewards: 0, total: 0 };
       return { loc, cur: LOCALES[loc].cur, ...r.all, ...t };
     });
@@ -752,7 +774,9 @@ function mainHTML() {
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
   const err = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
   if (loadingOnly) return nav + err + '<section class="panel state"><p class="muted">Loading your Amazon Associates data…</p></section>';
-  return kpiHTML(dayRows) + nav + heldBannerHTML(dayRows) + err + chartHTML(dayRows) + tableHTML(dayRows);
+  const cardRows = tagAgg() || dayRows;
+  const tagNote = tagMode() ? `<div class="tagnote">Tag filter on: <b>${view.tags.size}</b> tag${view.tags.size > 1 ? 's' : ''}. The cards, total income and countries table show only these tags. The chart and the Dates tab cannot be split by tag (Amazon reports daily totals for all tags together). <button type="button" class="linkbtn" data-tagallbtn="1">Show all tags</button></div>` : '';
+  return kpiHTML(cardRows) + nav + tagNote + heldBannerHTML(dayRows) + err + chartHTML(dayRows) + tableHTML(dayRows, cardRows);
 }
 
 // Filters are remembered: closing the popup and reopening it brings back the same view.
@@ -802,7 +826,7 @@ function render() {
   $('#bell').setAttribute('aria-expanded', String(view.notifOpen));
   $('#notifpanel').innerHTML = view.notifOpen ? notifPanelHTML() : '';
   const sf = $('#storefilter'); if (sf) sf.innerHTML = view.showSettings || status.signedOut ? '' : storeFilterHTML();
-  $('#headtotal').innerHTML = view.showSettings || status.signedOut ? '' : totalCardHTML(collect('day'));
+  $('#headtotal').innerHTML = view.showSettings || status.signedOut ? '' : totalCardHTML(tagAgg() || collect('day'));
   const main = $('#main');
   main.innerHTML = view.showSettings ? settingsHTML() : mainHTML();
   if (!view.showSettings && !status.signedOut) {

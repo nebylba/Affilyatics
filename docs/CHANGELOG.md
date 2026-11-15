@@ -7,8 +7,12 @@ Newest first. Dates are when the change was made.
 - **Store filter under the logo** (view-only): shows the main store id and "+N others"; clicking lists every store (account,
   countries, income) and picking one shows that store alone. The countries follow the store, and only that store is
   requested from the worker (`load` message gets `accounts`). Notifications and the 5-minute refresh still cover every store.
-- **Tags filter after Countries**: filters the Tracking IDs table only (Amazon's daily totals cannot be split by tag). The
-  tag list is fetched only when the menu is opened.
+- **Tags filter after Countries**: with tags selected, the cards (clicks, ordered, shipped, conversion), the total income
+  (earnings only) and the countries table show only those tags, from Amazon's tracking-ID table (period totals). Pending
+  and Returned cards show "-" and other income sources are left out (not per tag). The chart and the Dates tab cannot be
+  split by tag (Amazon's daily totals are for all tags), and a note says so. The tag list is fetched only when needed.
+- Fixes: the Countries menu opened off-screen to the left; the Store filter now has the Refresh button's height and shape,
+  fills the logo's width and its bottom line matches the Refresh button.
 - **Filters on the left**: Countries and Tags on the left of the toolbar; period, dates and metrics on the right.
 - Store and tag choices are remembered with the rest of the view (`viewState.stores`, `viewState.tags`).
 - **Refresh load fix**: the internal 90-day `pending` fetch is now refreshed every 30 min instead of every 5 min

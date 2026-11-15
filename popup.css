@@ -235,14 +235,12 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 .laststrip .lx:hover { color: var(--text); }
 
 .mi svg { flex: none; width: 18px; height: 13px; border-radius: 3px; }
-.menuright { left: auto; right: 0; min-width: 240px; }
 .msep { height: 1px; background: var(--line); margin: 4px 0; }
 .allrow { font-weight: 600; }
 .locwrap { margin-left: 0; }
 .toolbar > .when:not(.locwrap) { margin-left: auto; }
 .lonly { flex: 1; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 .lonly:hover span { text-decoration: underline; }
-.menuright { min-width: 280px; }
 /* very narrow window: fall back to equal columns with clipped labels rather than overflowing */
 @media (max-width: 900px) {
   .tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -318,12 +316,20 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 
 /* Store filter under the logo, Tags filter after Countries */
 .storefilter { position: relative; z-index: 6; }
-.storebtn { gap: 8px; padding: 4px 10px; }
+.storefilter { width: 100%; }
+.storefilter .dd { display: block; }
+/* same size, shape and bottom line as the Refresh button on the right */
+.storebtn { width: 100%; height: 36px; padding: 0 12px; border-radius: 9px; justify-content: space-between; gap: 8px; align-items: center; font-weight: 600; }
+.sline { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand { align-self: stretch; justify-content: space-between; padding-bottom: 23px; }
 .storebtn .sl { font-size: 10px; letter-spacing: .12em; color: var(--muted); }
-.storebtn b { font-weight: 600; font-size: 14px; }
+.storebtn b { font-weight: 600; font-size: 15px; }
 .storebtn .more { color: var(--muted); font-size: 12px; }
 .storemenu { min-width: 340px; max-height: 70vh; overflow: auto; }
 .tagmenu { min-width: 320px; max-height: 70vh; overflow: auto; }
 .scrow { display: flex; flex-direction: column; flex: 1; min-width: 0; text-align: left; }
 .scrow b { font-weight: 600; }
 .scrow small { color: var(--muted); font-size: 12px; }
+.ddsum.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
+.tagnote { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); font-size: 13px; color: var(--muted); }
+.tagnote b { color: var(--text); }

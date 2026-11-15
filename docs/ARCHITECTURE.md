@@ -75,6 +75,9 @@ Types: orders, commissions, bonuses, rewards, connections, signedout, dataissue.
   fetched; the 5-minute alarm (`prewarm`) ignores it, so alerts keep covering every store.
 - **Countries** (`view.sel`): `setSel()` also widens `view.stores` when the chosen stores do not sell in the chosen
   countries, so the screen is never empty. Picking a store sets the countries to that store's countries.
-- **Tags** (`view.tags`): applied in `collect('tag')` only (the Tracking IDs table); `collect('tag', true)` returns the
-  unfiltered list used by the menu. The `tag` dimension is only requested when that table or the Tags menu is open.
+- **Tags** (`view.tags`): `collect('tag')` filters the Tracking IDs table; `tagAgg()` builds one total row per store x country
+  from the tracking-ID table and replaces the daily rows for the cards, the total income and the countries table
+  (`tagMode()`); the chart and the Dates tab keep the unfiltered daily rows (Amazon has no daily split by tag: its
+  per-day tag report puts sales under "Other"). `collect('tag', true)` is the unfiltered list for the menu. The `tag`
+  dimension is requested when a tag filter is active, or the table / menu is open.
 - Both are persisted in `viewState`.
