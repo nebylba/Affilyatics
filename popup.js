@@ -495,7 +495,7 @@ function locsDropdownHTML() {
   const all = enabledCountries(), sel = selLocales();
   const items = all.map((c) => `<div class="mi"><input type="checkbox" data-loc="${c}" aria-label="Add or remove ${esc(LOCALES[c].label)}" ${sel.includes(c) ? 'checked' : ''}><button type="button" class="lonly" data-only="${c}" title="Show only ${esc(LOCALES[c].label)}">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></button><b class="muted">${LOCALES[c].cur}</b></div>`).join('');
   const menu = view.locOpen
-    ? `<div class="menu" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}</div>`
+    ? `<div class="menu menuright" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}</div>`
     : '';
   const flags = sel.length === all.length ? 'All countries' : sel.length === 1 ? LOCALES[sel[0]].label : `${sel.length} countries`;
   const shown = sel.length <= 5 ? sel.map((c) => flagSVG(c)).join('') : '';
@@ -562,7 +562,7 @@ function tagsDropdownHTML() {
   const items = list.map((t) => `<div class="mi"><input type="checkbox" data-tagbox="${esc(t.name)}" aria-label="Add or remove ${esc(t.name)}" ${!view.tags || view.tags.has(t.name) ? 'checked' : ''}><button type="button" class="lonly" data-tagonly="${esc(t.name)}" title="Show only ${esc(t.name)}"><span>${esc(t.name)}</span></button><b class="muted small">${fmtNum(t.clicks)} clicks</b></div>`).join('');
   const body = list.length ? items : `<p class="muted small" style="padding:8px">${isLoading() ? 'Loading tracking IDs…' : 'No tracking IDs for this period.'}</p>`;
   const menu = view.tagOpen
-    ? `<div class="menu tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>cards, total income, countries table and Tracking IDs</b>.</p></div>`
+    ? `<div class="menu menuright tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>cards, total income, countries table and Tracking IDs</b>.</p></div>`
     : '';
   const help = (view.tags ? `Tag filter on: ${view.tags.size} of ${total} tags. ` : 'Tags filter. ') + 'The cards, total income and countries table show only the selected tags. The chart and the Dates tab cannot be split by tag: Amazon reports daily totals for all tags together.';
   return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div><span class="help taghelp ${view.tags ? 'pulse' : ''}" tabindex="0" data-tip="${esc(help)}">?</span>`;
@@ -661,6 +661,51 @@ function signedOutHTML() {
   </section>`;
 }
 
+// ---- Settings: countries and stores as cards with live figures ----------------------------------------
+const periodLabel = () => (view.period === 'custom' ? 'custom range' : ((PERIODS.find((p) => p.id === view.period) || {}).label || 'this month').toLowerCase());
+function countryTotals() {
+  const out = {};
+  for (const a of accounts) for (const loc of a.locales || []) {
+    const e = entry(a.id, loc, 'day'); if (!e) continue;
+    const o = (out[loc] ||= { clicks: 0, earn: {} });
+    for (const r of e.rows) { o.clicks += r.clicks || 0; o.earn[LOCALES[loc].cur] = (o.earn[LOCALES[loc].cur] || 0) + (r.earnings || 0); }
+  }
+  return out;
+}
+function countriesSettingsHTML() {
+  const on = (c) => settings.countries.includes(c);
+  const tot = countryTotals();
+  const sold = new Set(accounts.flatMap((a) => a.locales || []));
+  const mine = Object.keys(LOCALES).filter((c) => sold.has(c)), other = Object.keys(LOCALES).filter((c) => !sold.has(c));
+  const card = (c) => {
+    const m = LOCALES[c], stores = accounts.filter((a) => (a.locales || []).includes(c)).length, t = tot[c];
+    const stat = t ? `<b>${esc(amountText(t))}</b><small>${fmtNum(t.clicks)} clicks</small>` : '<small>no data yet</small>';
+    return `<label class="ccard ${on(c) ? 'on' : ''}"><input type="checkbox" data-country="${c}" ${on(c) ? 'checked' : ''} aria-label="Show ${esc(m.label)}"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}</b><small>${m.cur}${stores ? ` · ${stores} store${stores > 1 ? 's' : ''}` : ''}</small></span><span class="cstat">${stat}</span><span class="switch" aria-hidden="true"></span></label>`;
+  };
+  return `<p class="muted small" style="margin:0 0 10px">Choose the countries the dashboard shows. Figures are for <b>${esc(periodLabel())}</b>.</p>
+    <div class="cquick"><button type="button" class="linkbtn" data-cq="mine">Where my stores sell</button><button type="button" class="linkbtn" data-cq="active">Only with activity</button><button type="button" class="linkbtn" data-cq="all">All</button></div>
+    ${mine.length ? `<div class="cgroup">WHERE YOUR STORES SELL</div><div class="cgrid">${mine.map(card).join('')}</div>` : ''}
+    <div class="cgroup">OTHER AMAZON COUNTRIES <span class="muted small">(none of your stores sells here yet)</span></div><div class="cgrid">${other.map(card).join('')}</div>`;
+}
+function storesSettingsHTML() {
+  if (!accounts.length) return '<p class="muted">Stores appear here after the first successful load (you must be signed in).</p>';
+  const accOn = (id) => !settings.accounts || settings.accounts.includes(id);
+  const tot = storeTotals(), per = periodLabel();
+  const cards = accounts.map((a, i) => {
+    const on = accOn(a.id);
+    let host = ''; try { host = new URL(a.base).host; } catch (_) {}
+    const err = Object.values(status.siteErrors || {}).find((e) => a.base && e.url === a.base);
+    let lu = ''; for (const l of a.locales || []) { const e = entry(a.id, l, 'day'); if (e && e.lu) { lu = `${LOCALES[l].short} ${e.lu}`; break; } }
+    const t = tot[a.id];
+    return `<label class="scard ${on ? 'on' : 'off'}"><input type="checkbox" data-account="${esc(a.id)}" ${on ? 'checked' : ''} aria-label="Include ${esc(a.id)}">
+      <span class="sbody"><span class="srow1"><b>${esc(a.id)}</b>${i === 0 ? '<span class="badge amz">main</span>' : ''}${err ? '<span class="badge warn">not signed in</span>' : ''}${on ? '' : '<span class="badge">left out</span>'}</span>
+        <span class="small muted">${esc(accountLabel(a))}${host ? ` · ${esc(host)}` : ''}</span>
+        <span class="sflags">${(a.locales || []).map((l) => `<span class="cchip">${flagSVG(l)}${esc(LOCALES[l].short)}</span>`).join('')}</span>
+        <span class="sstats">${t ? `<b>${esc(amountText(t))}</b> earned · ${fmtNum(t.clicks)} clicks <em>${esc(per)}</em>` : '<span class="muted">no figures loaded yet</span>'}</span>
+        ${lu ? `<span class="small muted">Amazon data updated ${esc(lu)}</span>` : ''}</span></label>`;
+  }).join('');
+  return `<p class="muted small" style="margin:0 0 10px">Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.</p><div class="sgrid">${cards}</div>`;
+}
 function settingsHTML() {
   const on = (c) => settings.countries.includes(c);
   const accOn = (id) => !settings.accounts || settings.accounts.includes(id);
@@ -668,10 +713,9 @@ function settingsHTML() {
   const toggles = NOTIFY_TYPES.map(([id, label, col]) => `<label class="nt"><input type="checkbox" data-notify="${id}" ${conf[id] ? 'checked' : ''}><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span></label>`).join('');
   return `<section class="set">
     <h2>Countries to show</h2>
-    <div class="checks">${Object.entries(LOCALES).map(([c, m]) => `<label><input type="checkbox" data-country="${c}" ${on(c) ? 'checked' : ''}> ${flagSVG(c)} ${esc(m.label)} <span class="muted small">${m.cur}</span></label>`).join('')}</div>
-    <h2>Associate stores (accounts) to include</h2>
-    ${accounts.length ? `<div class="checks">${accounts.map((a) => `<label><input type="checkbox" data-account="${esc(a.id)}" ${accOn(a.id) ? 'checked' : ''}> ${esc(a.id)} <span class="muted small">${esc((a.locales || []).filter((l) => SEPARATE_SITES[l]).join(', '))}</span></label>`).join('')}</div>`
-      : '<p class="muted">Stores appear here after the first successful load (you must be signed in).</p>'}
+    ${countriesSettingsHTML()}
+    <h2>Associate stores</h2>
+    ${storesSettingsHTML()}
     <h2>Notifications</h2>
     <div class="nset"><div class="muted small">Notify me about</div><div class="ntoggles">${toggles}</div>
       <label class="nt desk"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Also show desktop alerts <span class="muted small">(Chrome will ask for permission)</span></span></label>
@@ -750,7 +794,8 @@ function notifPanelHTML() {
     ? notif.items.slice(0, 50).map((i) => `<div class="nitem ${i.ts > view.notifFrom ? 'new' : ''}" ${i.url ? `data-open="${esc(i.url)}" style="cursor:pointer" title="Click to open"` : ''}><i class="sw" style="background:${typeColor(i.type)}"></i><div><div class="ntitle">${esc(i.title)}</div><div class="nbody muted small">${esc(i.body)}</div></div><span class="ntime muted small">${timeAgo(i.ts)}</span><button type="button" class="ndel" data-ndel="${esc(i.id)}" aria-label="Delete this notification" title="Delete">✕</button></div>`).join('')
     : '<p class="muted nempty">No notifications yet.<br>New orders, commissions, bonuses and Creator Rewards will show up here.</p>';
   return `<div class="npanel" role="dialog" aria-label="Notifications">
-    <div class="nhead"><strong>Notifications</strong><span><button type="button" class="linkbtn" id="nclear" ${notif.items.length ? '' : 'disabled'}>Clear all</button></span></div>
+    <div class="nhead"><strong>Notifications</strong><label class="nt deskchk" title="Also show a Windows / Mac desktop pop-up for new alerts (Chrome will ask for permission)"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Desktop alerts</span></label><span><button type="button" class="linkbtn" id="nclear" ${notif.items.length ? '' : 'disabled'}>Clear all</button></span></div>
+    ${view.notifMsg ? `<p class="small" style="color:var(--bad);margin:0;padding:6px 14px">${esc(view.notifMsg)}</p>` : ''}
     <div class="nlist">${list}</div>
     <div class="nfoot"><button type="button" class="linkbtn" id="nsettings">Notifications Settings</button></div>
   </div>`;
@@ -789,7 +834,7 @@ function mainHTML() {
   const loadingOnly = !dayRows.length && isLoading();
   const cur = primaryCurrency(dayRows);
   const metricsDD = metricsDropdownHTML(buildPoints(dayRows, cur).totals, cur);
-  const nav = `<div class="toolbar"><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div></div>`;
+  const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div></div>`;
   const siteErr = Object.entries(status.siteErrors || {}).filter(([loc]) => selLocales().includes(loc))
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
   const err = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
@@ -925,6 +970,14 @@ document.addEventListener('click', async (e) => {
   else if (q('[data-sub]')) { view.sub = q('[data-sub]').dataset.sub; render(); requestLoad(); }
   else if (q('[data-all]')) { setSel(null); }
   else if (q('[data-only]')) { setSel(new Set([q('[data-only]').dataset.only])); }
+  else if (q('[data-cq]')) {
+    const k = q('[data-cq]').dataset.cq, all = Object.keys(LOCALES);
+    const sold = new Set(accounts.flatMap((a) => a.locales || [])), tot = countryTotals();
+    let list = k === 'all' ? all : k === 'active' ? all.filter((c) => tot[c] && tot[c].clicks > 0) : all.filter((c) => sold.has(c));
+    if (!list.length) list = all.filter((c) => sold.has(c));
+    if (!list.length) list = ['US'];
+    await saveSettings({ countries: list }, false); render(); requestLoad();
+  }
   else if (q('[data-store-pick]')) {
     const id = q('[data-store-pick]').dataset.storePick;
     view.stores = id ? new Set([id]) : null; view.storeOpen = false;
@@ -992,6 +1045,7 @@ document.addEventListener('change', async (e) => {
   } else if (t.dataset.country) {
     const set = new Set(settings.countries);
     t.checked ? set.add(t.dataset.country) : set.delete(t.dataset.country);
+    if (!set.size) { t.checked = true; return; }                    // at least one country stays on
     await saveSettings({ countries: Object.keys(LOCALES).filter((c) => set.has(c)) }, false);
     render();
   } else if (t.dataset.account) {

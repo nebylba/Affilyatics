@@ -4,6 +4,15 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **TEMPORARY test alert** for the Creator Rewards enrollment notification: one sample item (clickable to the rewards page,
+  plus a desktop pop-up if desktop alerts are on) is added on every install / reload. Remove by setting
+  `SEED_ENROLL_TEST = false` in background.js when the owner says so.
+- **Desktop alerts checkbox** in the notifications popup header (same setting as Settings > Notifications).
+- **Settings**: Associate stores are now cards (main badge, account and host, countries, earned and clicks for the period,
+  Amazon "last updated", not-signed-in badge). Countries to show are cards with switches, grouped into where your stores
+  sell and the other Amazon countries, with live figures and quick actions (Where my stores sell / Only with activity / All).
+  At least one country always stays on.
+- **Filters swapped again**: period, dates and metrics on the left; Countries and Tags on the right (their menus open leftwards).
 - **Creator Rewards enrollment alert** (new notification type `enroll`, on by default, with its own switch in Settings):
   when a live or upcoming Creator Rewards offer needs you to enrol, an alert says so and a click opens that store's
   Creator Rewards page. Checked on every Creator Rewards refresh (the Current page) and every 30 min for the Upcoming tab;
