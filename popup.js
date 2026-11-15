@@ -127,7 +127,7 @@ function primaryCurrency(dayRows) {
 
 function weekStart(ds) { const d = parseYmd(ds); const k = (d.getDay() + 6) % 7; return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - k)); }
 
-const emptyPt = (date) => Object.fromEntries([['date', date], ...SERIES.map((s) => [s.id, 0])]);
+const emptyPt = (date) => Object.fromEntries([['date', date], ['held', false], ...SERIES.map((s) => [s.id, 0])]);
 
 function buildPoints(dayRows, cur) {
   const days = listDays(curRange());
@@ -138,6 +138,7 @@ function buildPoints(dayRows, cur) {
   for (const r of dayRows) {
     const i = idx.get(r.name); if (i == null) continue;
     const b = base[i];
+    if (r.held) b.held = true;
     b.clicks += r.clicks; b.ordered += r.ordered; b.shipped += r.shipped; b.returned += r.returned;
     if (r.cur === cur) { b.earnings += r.earnings; b.orderedRevenue += r.orderedRevenue; }
   }
@@ -157,6 +158,7 @@ function buildPoints(dayRows, cur) {
       const k = group === 'week' ? weekStart(b.date) : b.date.slice(0, 7) + '-01';
       const t = m.get(k) || emptyPt(k);
       for (const s of SERIES) t[s.id] += b[s.id];
+      if (b.held) t.held = true;
       m.set(k, t);
     }
     pts = [...m.values()];
@@ -164,7 +166,7 @@ function buildPoints(dayRows, cur) {
   const totals = Object.fromEntries(SERIES.map((s) => [s.id, pts.reduce((a, p) => a + p[s.id], 0)]));
   if (view.cumulative) {
     const run = {};
-    pts = pts.map((p) => { const q = { date: p.date }; for (const s of SERIES) { run[s.id] = (run[s.id] || 0) + p[s.id]; q[s.id] = run[s.id]; } return q; });
+    pts = pts.map((p) => { const q = { date: p.date, held: p.held }; for (const s of SERIES) { run[s.id] = (run[s.id] || 0) + p[s.id]; q[s.id] = run[s.id]; } return q; });
   }
   return { pts, group, totals, auto };
 }
@@ -215,6 +217,9 @@ function chartSVG(pts, vis, cur, group) {
       `<text class="axis" x="${ml - 8}" y="${y + 4}" text-anchor="end">${prim.money ? fmtMoney(v, cur, true) : fmtNum(v)}</text>`;
   }
   let body = '';
+  // days Amazon's report is missing (we show the last known values): orange band
+  const heldBw = Math.max(6, Math.min(40, step * 0.9));
+  body += pts.map((p, i) => (p.held ? `<rect class="heldband" x="${(X(i) - heldBw / 2).toFixed(1)}" y="${mt}" width="${heldBw.toFixed(1)}" height="${ph}" rx="3"/>` : '')).join('');
   for (const s of vis.filter((x) => x.bar)) {
     const bw = Math.max(1, Math.min(28, step * 0.7));
     body += pts.map((p, i) => `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${Y(s, p[s.id]).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, mt + ph - Y(s, p[s.id])).toFixed(1)}" rx="2" fill="var(--s-${s.id})" opacity=".85"/>`).join('');
@@ -237,7 +242,7 @@ function chartSVG(pts, vis, cur, group) {
 function lastStrip(pts, vis, cur, group) {
   if (view.hideLast || !pts.length) return '';
   const lp = pts[pts.length - 1];
-  const label = group === 'week' ? 'Week of ' + fmtDate(lp.date) : fmtDate(lp.date, group);
+  const label = (group === 'week' ? 'Week of ' + fmtDate(lp.date) : fmtDate(lp.date, group)) + (lp.held ? ' (held)' : '');
   return `<div class="laststrip"><b class="ld">Current day performance:</b><b class="ldate">${esc(label)}</b>` +
     vis.map((s) => `<span><i style="background:var(--s-${s.id})"></i>${esc(s.label)} <b>${esc(fmtSeries(s, lp[s.id], cur))}</b></span>`).join('') +
     `<button class="lx" data-close="1" aria-label="Hide last day" title="Hide">✕</button></div>`;
@@ -260,7 +265,8 @@ function wireChart(pts, vis, cur, group) {
     if (hov) hov.innerHTML = vis.map((s) => `<circle cx="${cx.toFixed(1)}" cy="${Y(s, p[s.id]).toFixed(1)}" r="3.5" fill="var(--s-${s.id})" stroke="var(--panel)" stroke-width="1.5"/>`).join('');
     const label = group === 'week' ? `Week of ${fmtDate(p.date)}` : fmtDate(p.date, group);
     tip.innerHTML = `<div class="d">${esc(label)}${view.cumulative ? ' · cumulative' : ''}</div>` +
-      vis.map((s) => `<div><span><i style="background:var(--s-${s.id})"></i> ${esc(s.label)}</span><b>${fmtSeries(s, p[s.id], cur)}</b></div>`).join('');
+      vis.map((s) => `<div><span><i style="background:var(--s-${s.id})"></i> ${esc(s.label)}</span><b>${fmtSeries(s, p[s.id], cur)}</b></div>`).join('') +
+      (p.held ? `<div class="hnote"><b>Held values</b>Amazon's report is currently missing ${group === 'day' ? 'this day' : 'a day in this period'}. These numbers are the last ones we saw, not confirmed by Amazon yet. They are replaced as soon as Amazon restores the data (usually within a day).</div>` : '');
     tip.hidden = false;
     const px = (cx / W) * r.width;
     const tw = tip.offsetWidth;
@@ -516,14 +522,15 @@ function tableHTML(dayRows) {
     const m = new Map();
     for (const r of dayRows) {
       const k = r.name + '|' + (multi() ? r.loc : r.cur);
-      const t = m.get(k) || { date: r.name, loc: r.loc, cur: r.cur, clicks: 0, ordered: 0, shipped: 0, returned: 0, orderedRevenue: 0, revenue: 0, earnings: 0, bounty: 0, bonus: 0 };
+      const t = m.get(k) || { date: r.name, loc: r.loc, cur: r.cur, clicks: 0, ordered: 0, shipped: 0, returned: 0, orderedRevenue: 0, revenue: 0, earnings: 0, bounty: 0, bonus: 0, held: false };
+      if (r.held) t.held = true;
       for (const f of ['clicks', 'ordered', 'shipped', 'returned', 'orderedRevenue', 'revenue', 'earnings', 'bounty', 'bonus']) t[f] += r[f] || 0;
       m.set(k, t);
     }
     const rows = [...m.values()].filter((t) => t.clicks || t.ordered || t.shipped || t.returned || t.orderedRevenue || t.revenue || t.earnings || t.bounty || t.bonus)
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.loc < b.loc ? -1 : 1));
     body = `<div class="tablewrap"><table><thead><tr><th>Date</th>${multi() ? '<th>Country</th>' : ''}<th class="n">Clicks</th><th class="n">Ordered</th><th class="n">Conv.</th><th class="n">Ordered revenue</th><th class="n">Shipped</th><th class="n">Returned</th><th class="n">Revenue</th><th class="n">Earnings</th><th class="n">Bounties</th></tr></thead><tbody>` +
-      rows.slice(0, 500).map((r) => `<tr><td>${esc(r.date)}</td>${multi() ? `<td><span class="cn">${flagSVG(r.loc)}${esc(LOCALES[r.loc].short)}</span></td>` : ''}${cell(r.clicks, fmtNum(r.clicks))}${cell(r.ordered, fmtNum(r.ordered))}<td class="n">${pct(r.ordered, r.clicks)}</td>${cell(r.orderedRevenue, fmtMoney(r.orderedRevenue, r.cur))}${cell(r.shipped, fmtNum(r.shipped))}${cell(r.returned, fmtNum(r.returned))}${cell(r.revenue, fmtMoney(r.revenue, r.cur))}${cell(r.earnings, fmtMoney(r.earnings, r.cur))}${cell(r.bounty, fmtMoney(r.bounty, r.cur))}</tr>`).join('') + '</tbody></table></div>';
+      rows.slice(0, 500).map((r) => `<tr${r.held ? ' class="held"' : ''}><td>${esc(r.date)}${r.held ? ' <span class="hbadge" title="Amazon&#39;s report is currently missing this day. These are the last values we saw, not confirmed by Amazon yet.">held</span>' : ''}</td>${multi() ? `<td><span class="cn">${flagSVG(r.loc)}${esc(LOCALES[r.loc].short)}</span></td>` : ''}${cell(r.clicks, fmtNum(r.clicks))}${cell(r.ordered, fmtNum(r.ordered))}<td class="n">${pct(r.ordered, r.clicks)}</td>${cell(r.orderedRevenue, fmtMoney(r.orderedRevenue, r.cur))}${cell(r.shipped, fmtNum(r.shipped))}${cell(r.returned, fmtNum(r.returned))}${cell(r.revenue, fmtMoney(r.revenue, r.cur))}${cell(r.earnings, fmtMoney(r.earnings, r.cur))}${cell(r.bounty, fmtMoney(r.bounty, r.cur))}</tr>`).join('') + '</tbody></table></div>';
     body = rows.length ? body : empty(wait);
   } else {
     if (!haveData(sub)) return tabs + empty(wait);
@@ -631,7 +638,7 @@ function rangeButtonHTML() {
 // Notifications: list + which events to notify about.
 const NOTIFY_TYPES = [
   ['orders', 'New orders', 'ordered'], ['commissions', 'Commissions', 'earnings'], ['bonuses', 'Bonuses & bounties', 'bonus'],
-  ['rewards', 'Creator Rewards', 'rewards'], ['connections', 'Creator Connections', 'connections'], ['signedout', 'Signed-out warnings', 'returned']
+  ['rewards', 'Creator Rewards', 'rewards'], ['connections', 'Creator Connections', 'connections'], ['signedout', 'Signed-out warnings', 'returned'], ['dataissue', 'Amazon report issues', 'pending']
 ];
 const typeColor = (t) => { const x = NOTIFY_TYPES.find((n) => n[0] === t); return x ? `var(--s-${x[2]})` : 'var(--muted)'; };
 const notifyConf = () => ({ ...DEFAULTS.notify, ...(settings.notify || {}) });
@@ -655,6 +662,33 @@ function notifPanelHTML() {
   </div>`;
 }
 
+// Days Amazon's report dropped (see guardDays in background.js): the rows carry `held` and the last known values.
+const siteUrl = (loc) => (SEPARATE_SITES[loc] || 'https://affiliate-program.amazon.com') + '/p/reporting/earnings';
+const heldRows = (dayRows) => dayRows.filter((r) => r.held).sort((a, b) => (a.name < b.name ? 1 : -1));
+function heldBannerHTML(dayRows) {
+  const h = heldRows(dayRows);
+  if (!h.length) return '';
+  const lbl = (r) => fmtDate(r.name) + (multi() ? ` (${LOCALES[r.loc].short})` : '');
+  const days = h.slice(0, 4).map(lbl).join(', ') + (h.length > 4 ? ` +${h.length - 4} more` : '');
+  const s = h[0];
+  const vals = `${fmtNum(s.clicks)} clicks${s.ordered ? ` · ${fmtNum(s.ordered)} ordered` : ''}${s.orderedRevenue > 0 ? ` · ${fmtMoney(s.orderedRevenue, s.cur)}` : ''}`;
+  return `<div class="banner held" role="status"><span class="htxt"><b>Amazon's report is missing ${esc(days)}.</b> We're showing the last values we saw${h.length === 1 ? ` (${esc(vals)})` : ''}, marked in orange, until Amazon restores ${h.length === 1 ? 'that day' : 'those days'}. This is on Amazon's side and usually fixes itself within a day.</span><span class="hbtns"><button type="button" data-open="${esc(siteUrl(s.loc))}">Open Amazon report</button><button type="button" data-copydiag="1">Copy details</button></span></div>`;
+}
+function heldDiagnostics(dayRows) {
+  const f = (o) => (o ? `clicks ${o.clicks}, ordered ${o.ordered}, ordered revenue ${o.orderedRevenue}, shipped ${o.shipped}, returned ${o.returned}, revenue ${o.revenue}, earnings ${o.earnings}` : 'no row at all');
+  const lines = ['Affilyatics: Amazon report gap', `Checked: ${new Date().toISOString()} (browser time zone ${Intl.DateTimeFormat().resolvedOptions().timeZone}; Amazon's calendar days are Pacific time)`, ''];
+  for (const r of heldRows(dayRows)) {
+    const o = r.held;
+    lines.push(`${r.loc} ${r.acct} ${r.name}`,
+      `  last known (shown): ${f(r)}`,
+      `  Amazon returned: ${f(o.got)}`,
+      `  requested range: ${(o.range || []).join(' .. ')}`,
+      `  Amazon "last updated": ${o.lu || 'n/a'}`,
+      `  first noticed missing: ${new Date(o.since).toISOString()}`, '');
+  }
+  return lines.join('\n');
+}
+
 function mainHTML() {
   if (status.signedOut) return signedOutHTML();
   const dayRows = collect('day');
@@ -666,7 +700,7 @@ function mainHTML() {
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
   const err = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
   if (loadingOnly) return nav + err + '<section class="panel state"><p class="muted">Loading your Amazon Associates data…</p></section>';
-  return kpiHTML(dayRows) + nav + err + chartHTML(dayRows) + tableHTML(dayRows);
+  return kpiHTML(dayRows) + nav + heldBannerHTML(dayRows) + err + chartHTML(dayRows) + tableHTML(dayRows);
 }
 
 // Filters are remembered: closing the popup and reopening it brings back the same view.
@@ -778,6 +812,10 @@ document.addEventListener('click', async (e) => {
   else if (q('#nsettings')) { closePops(); view.showSettings = true; render(); }
   else if (q('#gear')) { view.showSettings = !view.showSettings; render(); }
   else if (q('#open, #amazon')) chrome.tabs.create({ url: 'https://affiliate-program.amazon.com/home' });
+  else if (q('[data-copydiag]')) {
+    const text = heldDiagnostics(collect('day')), b = q('[data-copydiag]');
+    try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; } catch (_) { b.textContent = 'Copy failed'; }
+  }
   else if (q('[data-open]')) chrome.tabs.create({ url: q('[data-open]').dataset.open });
   else if (q('#retry')) { requestLoad(true); }
   else if (q('#done')) { view.showSettings = false; render(); requestLoad(); }

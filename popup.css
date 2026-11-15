@@ -303,3 +303,14 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 .stat .cnt { grid-row: 2; grid-column: 3; align-self: end; padding: 0 0 3px 8px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .stat .l { white-space: nowrap; }
 .stat:has(.help) .l { font-size: 12px; }
+
+/* Amazon report gap: last known values kept and marked in orange */
+.banner.held { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-color: var(--s-pending); color: var(--text); background: color-mix(in srgb, var(--s-pending) 12%, var(--panel)); font-size: 13px; line-height: 1.4; }
+.banner.held .htxt b { color: var(--s-pending); }
+.banner.held .hbtns { display: flex; flex: none; gap: 8px; }
+.heldband { fill: var(--s-pending); opacity: .22; stroke: var(--s-pending); stroke-width: 1; stroke-dasharray: 3 2; }
+.tip .hnote { display: block; max-width: 240px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); white-space: normal; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.tip .hnote b { display: block; color: var(--s-pending); }
+tr.held td { background: color-mix(in srgb, var(--s-pending) 12%, transparent); }
+tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
+.hbadge { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--s-pending); border-radius: 999px; color: var(--s-pending); font-size: 10px; font-weight: 600; cursor: help; }

@@ -397,7 +397,7 @@ function deriveFromWider(cache, acct, loc, dim, range) {
 // Detected by comparing each fresh "this month" fetch with the previous snapshot of the same
 // store + country + month. Nothing is announced on the very first fetch (that is the baseline) or when the
 // baseline is older than 14 days, so you never get a flood of "new" events for old data.
-const NOTIFY_DEFAULT = { orders: true, commissions: true, bonuses: true, rewards: true, connections: true, signedout: true, desktop: false };
+const NOTIFY_DEFAULT = { orders: true, commissions: true, bonuses: true, rewards: true, connections: true, signedout: true, dataissue: true, desktop: false };
 const SYM = { USD: '$', CAD: 'C$', GBP: '£', EUR: '€', SEK: 'kr ', PLN: 'zł ' };
 const money = (n, cur) => (n < 0 ? '-' : '') + (SYM[cur] || cur + ' ') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const BASELINE_MAX_AGE_MS = 14 * 86400000;
@@ -447,6 +447,62 @@ async function detectConn(t, rows, range) {
   if (!prev || Date.now() - prev.at > BASELINE_MAX_AGE_MS) return;
   const d = tot - prev.tot, cur = LOCALES[t.loc].cur, cc = LOCALES[t.loc].short;
   if (d > 0.004) pushEvent('connections', `Creator Connections ${money(d, cur).replace(/^/, '+')} · ${cc}`, `Creator Connections this month: ${money(tot, cur)} · ${t.acct}`, { loc: t.loc, acct: t.acct, cur, amount: d });
+}
+
+// ---- Amazon report gaps ---------------------------------------------------------------------------
+// Sometimes Amazon's report drops a recent day (it shows clicks and orders in a single-day query but nothing for that day
+// inside a longer range, and it comes back hours later). We keep a small ledger of the last values seen for each recent
+// day. If a day that had activity vanishes from a fresh response, its last known values are put back into the rows,
+// flagged `held`, so every card, the chart and the tables keep showing them (marked as unconfirmed). The hold ends
+// as soon as Amazon returns data for that day again, or after 72 hours.
+const HOLD_RECENT_DAYS = 7, HOLD_MAX_MS = 72 * 3600e3, LEDGER_KEEP_DAYS = 14;
+const LEDGER_FIELDS = ['clicks', 'ordered', 'shipped', 'returned', 'orderedRevenue', 'revenue', 'earnings', 'bounty', 'bonus'];
+const prettyDay = (d) => parseYmd(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const siteUrl = (loc) => (SEPARATE_SITES[loc] || 'https://affiliate-program.amazon.com') + '/p/reporting/earnings';
+const daysAgo = (n) => ymd(new Date(Date.now() - n * 86400000));
+
+async function guardDays(t, res, range) {
+  const { ledger = {} } = await chrome.storage.local.get('ledger');
+  const key = `${t.acct}|${t.loc}`;
+  const L = (ledger[key] ||= {});
+  const rows = res.rows;
+  const byDay = new Map(rows.map((r) => [r.name, r]));
+  const cur = LOCALES[t.loc].cur, cc = LOCALES[t.loc].short;
+  const minDay = daysAgo(HOLD_RECENT_DAYS), now = Date.now();
+  let dirty = false;
+  // 1. remember what Amazon shows for recent days
+  for (const r of rows) {
+    if (r.name < minDay || !hasData(r)) continue;
+    const old = L[r.name];
+    if (old && old.heldSince) {
+      pushEvent('dataissue', `Amazon's report is back for ${prettyDay(r.name)} · ${cc}`, `The missing day is available again (${Math.round(r.clicks)} clicks, ${Math.round(r.ordered)} ordered). Numbers are confirmed by Amazon again. · ${t.acct}`, { loc: t.loc, acct: t.acct, cur, amount: 0 });
+    }
+    L[r.name] = { at: now, row: Object.fromEntries(LEDGER_FIELDS.map((f) => [f, r[f] || 0])) };
+    dirty = true;
+  }
+  // 2. recent days we knew that this response no longer contains
+  for (const [day, e] of Object.entries(L)) {
+    if (day < range[0] || day > range[1]) continue;
+    if (day < daysAgo(LEDGER_KEEP_DAYS)) { delete L[day]; dirty = true; continue; }
+    const got = byDay.get(day);
+    if (got && hasData(got)) continue;
+    if (day < minDay) continue;
+    if (!e.heldSince) {
+      e.heldSince = now; dirty = true;
+      const s = e.row;
+      pushEvent('dataissue', `Amazon's report is missing ${prettyDay(day)} · ${cc}`,
+        `It showed ${Math.round(s.clicks)} clicks${s.ordered ? `, ${Math.round(s.ordered)} ordered item${Math.round(s.ordered) === 1 ? '' : 's'}${s.orderedRevenue > 0.004 ? ` (${money(s.orderedRevenue, cur)})` : ''}` : ''} earlier. Showing the last known values until Amazon restores them. · ${t.acct}`,
+        { loc: t.loc, acct: t.acct, cur, amount: 0, url: siteUrl(t.loc) });
+    }
+    if (now - e.heldSince > HOLD_MAX_MS) { delete L[day]; dirty = true; continue; } // give up: accept Amazon's version
+    e.diag = { at: now, lu: res.lu || null, range, got: got ? Object.fromEntries(LEDGER_FIELDS.map((f) => [f, got[f] || 0])) : null };
+    const held = { name: day, ...e.row, held: { since: e.heldSince, lu: res.lu || null, got: e.diag.got, range } };
+    if (got) Object.assign(got, held); else rows.push(held);
+    dirty = true;
+  }
+  // 3. clear holds Amazon already settled (a day that is no longer in the ledger is simply not patched)
+  for (const k of Object.keys(L)) if (k < daysAgo(LEDGER_KEEP_DAYS)) { delete L[k]; dirty = true; }
+  if (dirty) await chrome.storage.local.set({ ledger });
 }
 
 function detectRewards(acct, prev, months) {
@@ -629,6 +685,7 @@ async function load(req) {
         if (idle) res = { rows: [] }; // no traffic = no Creator Connections income: skip the request
         else {
           res = await runFetch(t, t.range || range); fetched++;
+          if (t.dim === 'day') { await guardDays(t, res, t.range || range); await persistNotify(); }
           if (req.period === 'month' && !t.pending) {
             if (t.dim === 'day') { await detectDay(t, res.rows, range); await persistNotify(); }
             else if (t.dim === 'connections') { await detectConn(t, res.rows, range); await persistNotify(); }
