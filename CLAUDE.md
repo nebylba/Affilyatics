@@ -39,6 +39,7 @@ stubbed `chrome.storage`. UI changes cannot be seen without loading the extensio
 - Data: `collect(dim)` returns rows for the selected countries/accounts; `sumByCurrency`, `byLocation`, `buildPoints`.
 - Header: `totalCardHTML`. Cards: `kpiHTML`, `pendingStat`, `returnedStat`, `heldBannerHTML`.
 - Chart: `chartSVG`, `lastStrip` (current-period values under the chart), `wireChart` (hover tooltip). Tables: `tableHTML` (subtabs countries/tag/cat/product/dates).
+- Filters: `storeFilterHTML` (under the logo, `#storefilter`), `locsDropdownHTML`, `tagsDropdownHTML`; state `view.stores`, `view.sel`, `view.tags`.
 - Tooltips: `.tip` (chart), `.bdtip` (by-country breakdown, `data-bd` attribute), `.help::after` ("?" explanations).
 
 `shared.js`: `LOCALES`, `SEPARATE_SITES` (CA has its own host), `PERIODS`, `rangeFor` (includes the internal `last90`),

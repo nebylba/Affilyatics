@@ -119,7 +119,7 @@ input[type=date] { font: inherit; color: var(--text); border: 1px solid var(--li
 .progress i { display: block; height: 100%; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .3s; }
 
 /* Header: logo + name | wider total card (centered) | icon buttons */
-.brand { display: flex; align-items: center; gap: 12px; min-width: 0; padding-right: 8px; }
+.brand { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding-right: 8px; }
 .logo { flex: none; border-radius: 5px; }
 .brandtext { display: flex; flex-direction: column; min-width: 0; }
 .primary { background: var(--accent); border-color: var(--accent); color: var(--navy-on, #14244a); font-weight: 600; }
@@ -238,7 +238,8 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 .menuright { left: auto; right: 0; min-width: 240px; }
 .msep { height: 1px; background: var(--line); margin: 4px 0; }
 .allrow { font-weight: 600; }
-.locwrap { margin-left: auto; }
+.locwrap { margin-left: 0; }
+.toolbar > .when:not(.locwrap) { margin-left: auto; }
 .lonly { flex: 1; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 .lonly:hover span { text-decoration: underline; }
 .menuright { min-width: 280px; }
@@ -314,3 +315,15 @@ button.mi { width: 100%; border: 0; background: none; text-align: left; padding:
 tr.held td { background: color-mix(in srgb, var(--s-pending) 12%, transparent); }
 tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 .hbadge { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--s-pending); border-radius: 5px; color: var(--s-pending); font-size: 10px; font-weight: 600; cursor: help; }
+
+/* Store filter under the logo, Tags filter after Countries */
+.storefilter { position: relative; z-index: 6; }
+.storebtn { gap: 8px; padding: 4px 10px; }
+.storebtn .sl { font-size: 10px; letter-spacing: .12em; color: var(--muted); }
+.storebtn b { font-weight: 600; font-size: 14px; }
+.storebtn .more { color: var(--muted); font-size: 12px; }
+.storemenu { min-width: 340px; max-height: 70vh; overflow: auto; }
+.tagmenu { min-width: 320px; max-height: 70vh; overflow: auto; }
+.scrow { display: flex; flex-direction: column; flex: 1; min-width: 0; text-align: left; }
+.scrow b { font-weight: 600; }
+.scrow small { color: var(--muted); font-size: 12px; }

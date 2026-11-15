@@ -622,7 +622,7 @@ async function load(req) {
       else if (!siteErrors[loc]) await authClear(`site:${loc}`);
     }
     if (my !== gen) return;
-    const accts = accounts.filter((a) => !settings.accounts || settings.accounts.includes(a.id));
+    const accts = accounts.filter((a) => (!settings.accounts || settings.accounts.includes(a.id)) && (!req.accounts || req.accounts.includes(a.id)));   // req.accounts: the dashboard is looking at one store only
 
     const okRange = (r) => Array.isArray(r) && r.length === 2 && r.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)) && r[0] <= r[1] && r[0] >= '2010-01-01';
     const range = req.period === 'custom' && okRange(req.range) ? req.range : rangeFor(req.period === 'custom' ? 'month' : req.period);

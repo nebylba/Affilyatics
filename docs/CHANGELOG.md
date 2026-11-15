@@ -4,6 +4,13 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Store filter under the logo** (view-only): shows the main store id and "+N others"; clicking lists every store (account,
+  countries, income) and picking one shows that store alone. The countries follow the store, and only that store is
+  requested from the worker (`load` message gets `accounts`). Notifications and the 5-minute refresh still cover every store.
+- **Tags filter after Countries**: filters the Tracking IDs table only (Amazon's daily totals cannot be split by tag). The
+  tag list is fetched only when the menu is opened.
+- **Filters on the left**: Countries and Tags on the left of the toolbar; period, dates and metrics on the right.
+- Store and tag choices are remembered with the rest of the view (`viewState.stores`, `viewState.tags`).
 - **Refresh load fix**: the internal 90-day `pending` fetch is now refreshed every 30 min instead of every 5 min
   (it doubled the API requests of every cycle: 18 instead of 9 per 5 minutes with 9 store x country entries).
 - Refresh rules documented in docs/ARCHITECTURE.md (daily numbers and Creator Rewards every 5 min for every store and

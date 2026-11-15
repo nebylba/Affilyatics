@@ -17,7 +17,7 @@ const SERIES = [
 let settings = { ...DEFAULTS };
 let cache = {}, status = {}, accounts = [];
 let notif = { items: [], readAt: 0 };
-const view = { sel: null, locOpen: false, period: 'month', from: null, to: null, sub: null, metrics: new Set(['earnings', 'clicks', 'ordered']), group: null, cumulative: false, showSettings: false, ddOpen: false, perOpen: false, calOpen: false, notifOpen: false, notifFrom: 0, notifMsg: '', cal: { month: null, start: null, end: null, picking: false } };
+const view = { sel: null, stores: null, tags: null, storeOpen: false, tagOpen: false, locOpen: false, period: 'month', from: null, to: null, sub: null, metrics: new Set(['earnings', 'clicks', 'ordered']), group: null, cumulative: false, showSettings: false, ddOpen: false, perOpen: false, calOpen: false, notifOpen: false, notifFrom: 0, notifMsg: '', cal: { month: null, start: null, end: null, picking: false } };
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>';
 const ICON_SUN = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -44,7 +44,8 @@ const zero = () => Object.fromEntries(FIELDS.map((f) => [f, 0]));
 
 // ---- state helpers ------------------------------------------------------------------------
 const enabledCountries = () => settings.countries.filter((c) => LOCALES[c]);
-const activeAccounts = () => accounts.filter((a) => !settings.accounts || settings.accounts.includes(a.id));
+// Stores: the ones included in Settings, narrowed by the Store filter under the logo (view.stores = a Set of store ids, or null for all).
+const activeAccounts = () => accounts.filter((a) => (!settings.accounts || settings.accounts.includes(a.id)) && (!view.stores || view.stores.has(a.id)));
 // Countries shown: view.sel = a Set of countries, or null for all enabled ones.
 const selLocales = () => { const all = enabledCountries(); const l = view.sel ? all.filter((c) => view.sel.has(c)) : all; return l.length ? l : all; };
 const multi = () => selLocales().length > 1;
@@ -52,7 +53,12 @@ const subOptions = () => (multi()
   ? [['countries', 'Countries'], ['tag', 'Tracking IDs'], ['cat', 'Categories'], ['product', 'Products'], ['dates', 'Dates']]
   : [['tag', 'Tracking IDs'], ['cat', 'Categories'], ['product', 'Products'], ['dates', 'Dates']]);
 const currentSub = () => (subOptions().some(([id]) => id === view.sub) ? view.sub : subOptions()[0][0]);
-const wantedDims = () => { const s = currentSub(); return s === 'countries' || s === 'dates' ? ['day', 'connections', 'rewards'] : ['day', 'connections', 'rewards', s]; };
+const wantedDims = () => {
+  const s = currentSub();
+  const d = s === 'countries' || s === 'dates' ? ['day', 'connections', 'rewards'] : ['day', 'connections', 'rewards', s];
+  if (view.tagOpen && !d.includes('tag')) d.push('tag');            // the Tags filter needs the tracking-ID list
+  return d;
+};
 
 function entry(acct, loc, dim) {
   const e = cache[`${acct}|${loc}|${view.period}|${dim}`];
@@ -60,14 +66,15 @@ function entry(acct, loc, dim) {
   const r = curRange();
   return e.range[0] === r[0] && e.range[1] === r[1] ? e : null;
 }
-function collect(dim) {
+function collect(dim, raw) {
   if (dim === 'income') return collectIncome();
-  const out = [];
+  let out = [];
   for (const loc of selLocales()) for (const a of activeAccounts()) {
     if (!(a.locales || []).includes(loc)) continue;
     const e = entry(a.id, loc, dim);
     if (e) for (const row of e.rows) out.push({ loc, acct: a.id, cur: LOCALES[loc].cur, ...row });
   }
+  if (dim === 'tag' && view.tags && !raw) out = out.filter((r) => view.tags.has(r.name));   // Tags filter (Tracking IDs table only)
   return out;
 }
 // "Income" is derived: bounties + bonus ride along with the daily rows (one request), Creator Connections come separately.
@@ -476,6 +483,50 @@ function locsDropdownHTML() {
   return `<div class="dd"><button type="button" class="ddsum" data-dd="locs" aria-haspopup="true" aria-expanded="${view.locOpen}"><span class="dots flags">${shown}</span>${esc(flags)} ${CHEVRON}</button>${menu}</div>`;
 }
 
+
+// ---- Store filter (under the logo) and Tags filter (after Countries) ---------------------------------
+const accountLabel = (a) => { const hit = Object.entries(SEPARATE_SITES).find(([, u]) => u === a.base); return hit ? `${LOCALES[hit[0]].label} account` : 'US account'; };
+// the stores that actually have something in the countries on screen (the first one is the "main store")
+const shownStores = () => { const cur = new Set(selLocales()); const l = activeAccounts().filter((a) => (a.locales || []).some((x) => cur.has(x))); return l.length ? l : activeAccounts(); };
+function storeTotals() {
+  const out = {};
+  for (const a of accounts) for (const loc of a.locales || []) {
+    if (!enabledCountries().includes(loc)) continue;
+    const e = entry(a.id, loc, 'day'); if (!e) continue;
+    const o = (out[a.id] ||= { clicks: 0, earn: {} });
+    for (const r of e.rows) { o.clicks += r.clicks || 0; o.earn[LOCALES[loc].cur] = (o.earn[LOCALES[loc].cur] || 0) + (r.earnings || 0); }
+  }
+  return out;
+}
+const amountText = (o) => { if (!o) return '—'; const c = Object.keys(o.earn).find((k) => o.earn[k]); return c ? fmtMoney(o.earn[c], c) : fmtMoney(0, Object.keys(o.earn)[0] || 'USD'); };
+function storeFilterHTML() {
+  if (!accounts.length) return '';
+  const shown = shownStores(), main = shown[0] || accounts[0], others = shown.length - 1;
+  const tot = storeTotals();
+  const menu = view.storeOpen
+    ? `<div class="menu storemenu" role="listbox" aria-label="Store"><div class="mhead"><span class="muted small">Which store are you looking at?</span></div>
+        <button type="button" class="mi pi ${view.stores ? '' : 'sel'}" role="option" aria-selected="${!view.stores}" data-store-pick=""><span class="chk">${view.stores ? '' : '✓'}</span><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button>
+        ${accounts.map((a) => { const on = view.stores && view.stores.has(a.id); return `<button type="button" class="mi pi ${on ? 'sel' : ''}" role="option" aria-selected="${!!on}" data-store-pick="${esc(a.id)}"><span class="chk">${on ? '✓' : ''}</span><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span><em>${esc(amountText(tot[a.id]))}</em></button>`; }).join('')}</div>`
+    : '';
+  return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more">+${others} other${others > 1 ? 's' : ''}</span>` : ''}${CHEVRON}</button>${menu}</div>`;
+}
+function tagList() {
+  const m = new Map();
+  for (const r of collect('tag', true)) { const o = m.get(r.name) || { name: r.name, clicks: 0, earn: {} }; o.clicks += r.clicks || 0; o.earn[r.cur] = (o.earn[r.cur] || 0) + (r.earnings || 0); m.set(r.name, o); }
+  const e = (o) => Object.values(o.earn).reduce((a, b) => a + b, 0);
+  return [...m.values()].sort((a, b) => e(b) - e(a) || b.clicks - a.clicks);
+}
+function tagsDropdownHTML() {
+  const list = tagList();
+  const label = !view.tags ? 'All tags' : view.tags.size === 1 ? [...view.tags][0] : `${view.tags.size} tags`;
+  const items = list.map((t) => `<div class="mi"><input type="checkbox" data-tagbox="${esc(t.name)}" aria-label="Add or remove ${esc(t.name)}" ${!view.tags || view.tags.has(t.name) ? 'checked' : ''}><button type="button" class="lonly" data-tagonly="${esc(t.name)}" title="Show only ${esc(t.name)}"><span>${esc(t.name)}</span></button><b class="muted small">${fmtNum(t.clicks)} clicks</b></div>`).join('');
+  const body = list.length ? items : `<p class="muted small" style="padding:8px">${isLoading() ? 'Loading tracking IDs…' : 'No tracking IDs for this period.'}</p>`;
+  const menu = view.tagOpen
+    ? `<div class="menu tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>Tracking IDs</b> table. Amazon's daily totals cannot be split by tag.</p></div>`
+    : '';
+  return `<div class="dd"><button type="button" class="ddsum" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the Tracking IDs table"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div>`;
+}
+
 // Multi-select dropdown (checkboxes) next to the period select: which series the chart shows.
 function metricsDropdownHTML(totals, cur) {
   const sel = SERIES.filter((s) => view.metrics.has(s.id));
@@ -539,7 +590,8 @@ function tableHTML(dayRows) {
       const rows = mergeRows(raw, (r) => r.name + '|' + (multi() ? r.loc : ''));
       body = `<div class="tablewrap"><table><thead><tr><th>Tracking ID</th>${multi() ? '<th>Country</th>' : ''}<th class="n">Clicks</th><th class="n">Ordered</th><th class="n">Shipped</th><th class="n">Conv.</th><th class="n">Ordered revenue</th><th class="n">Earnings</th></tr></thead><tbody>` +
         rows.slice(0, 100).map((r) => `<tr><td>${esc(r.name)}</td>${multi() ? `<td><span class="cn">${flagSVG(r.loc)}${esc(LOCALES[r.loc].short)}</span></td>` : ''}${cell(r.clicks, fmtNum(r.clicks))}${cell(r.ordered, fmtNum(r.ordered))}${cell(r.shipped, fmtNum(r.shipped))}<td class="n">${pct(r.ordered, r.clicks)}</td>${cell(r.orderedRevenue, fmtMoney(r.orderedRevenue, r.cur))}${cell(r.earnings, fmtMoney(r.earnings, r.cur))}</tr>`).join('') + '</tbody></table></div>';
-      if (!rows.length) body = empty('No tracking-ID activity for this period.');
+      if (!rows.length) body = empty(view.tags ? 'No activity for the tags you selected.' : 'No tracking-ID activity for this period.');
+      if (view.tags) body = `<p class="muted small" style="margin:0 0 8px">Tag filter: ${view.tags.size} of ${new Set(collect('tag', true).map((r) => r.name)).size} tags · <button type="button" class="linkbtn" data-tagallbtn="1">show all</button></p>` + body;
     } else if (sub === 'cat') {
       const rows = mergeRows(raw, (r) => r.name + '|' + r.cur);
       body = `<div class="tablewrap"><table><thead><tr><th>Category</th><th class="n">Ordered</th><th class="n">Shipped</th><th class="n">Returned</th><th class="n">Ordered revenue</th><th class="n">Earnings</th></tr></thead><tbody>` +
@@ -590,8 +642,8 @@ function settingsHTML() {
 // ---- popovers: period list, date picker, notifications ----------------------------------------------
 const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 const ICON_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
-const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = false; };
-const anyPopOpen = () => view.ddOpen || view.perOpen || view.calOpen || view.notifOpen || view.locOpen;
+const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = view.storeOpen = view.tagOpen = false; };
+const anyPopOpen = () => view.ddOpen || view.perOpen || view.calOpen || view.notifOpen || view.locOpen || view.storeOpen || view.tagOpen;
 const fmtDay = (s, withYear) => parseYmd(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}) });
 const rangeText = (a, b, withYear = true) => (a === b ? fmtDay(a, withYear) : `${fmtDay(a, withYear)} – ${fmtDay(b, withYear)}`);
 
@@ -695,7 +747,7 @@ function mainHTML() {
   const loadingOnly = !dayRows.length && isLoading();
   const cur = primaryCurrency(dayRows);
   const metricsDD = metricsDropdownHTML(buildPoints(dayRows, cur).totals, cur);
-  const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div><div class="when locwrap">${locsDropdownHTML()}</div></div>`;
+  const nav = `<div class="toolbar"><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div></div>`;
   const siteErr = Object.entries(status.siteErrors || {}).filter(([loc]) => selLocales().includes(loc))
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
   const err = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
@@ -706,7 +758,7 @@ function mainHTML() {
 // Filters are remembered: closing the popup and reopening it brings back the same view.
 let savedView = '';
 function persistView() {
-  const v = { period: view.period, from: view.from, to: view.to, sub: view.sub, metrics: [...view.metrics], group: view.group, cumulative: view.cumulative, hideLast: !!view.hideLast, sel: view.sel ? [...view.sel] : null };
+  const v = { period: view.period, from: view.from, to: view.to, sub: view.sub, metrics: [...view.metrics], group: view.group, cumulative: view.cumulative, hideLast: !!view.hideLast, sel: view.sel ? [...view.sel] : null, stores: view.stores ? [...view.stores] : null, tags: view.tags ? [...view.tags] : null };
   const j = JSON.stringify(v);
   if (j === savedView) return;
   savedView = j;
@@ -723,6 +775,8 @@ function restoreView(v) {
   view.cumulative = !!v.cumulative; view.hideLast = !!v.hideLast;
   if (Array.isArray(v.sel)) { const l = v.sel.filter((c) => enabledCountries().includes(c)); view.sel = l.length && l.length < enabledCountries().length ? new Set(l) : null; }
   else if ('sel' in v) view.sel = null;
+  if (Array.isArray(v.stores)) { const l = v.stores.filter((id) => accounts.some((a) => a.id === id)); view.stores = l.length && l.length < accounts.length ? new Set(l) : null; }
+  if (Array.isArray(v.tags) && v.tags.length) view.tags = new Set(v.tags.map(String));
   savedView = JSON.stringify(v);
 }
 
@@ -747,6 +801,7 @@ function render() {
   $('#bell').title = unread ? `${unread} new notification${unread > 1 ? 's' : ''}` : 'Notifications';
   $('#bell').setAttribute('aria-expanded', String(view.notifOpen));
   $('#notifpanel').innerHTML = view.notifOpen ? notifPanelHTML() : '';
+  const sf = $('#storefilter'); if (sf) sf.innerHTML = view.showSettings || status.signedOut ? '' : storeFilterHTML();
   $('#headtotal').innerHTML = view.showSettings || status.signedOut ? '' : totalCardHTML(collect('day'));
   const main = $('#main');
   main.innerHTML = view.showSettings ? settingsHTML() : mainHTML();
@@ -767,6 +822,10 @@ const renderSoon = () => { clearTimeout(timer); timer = setTimeout(render, 120);
 // Apply a new country selection (null = all), remember it, reload what is missing.
 function setSel(sel, keepOpen) {
   const all = enabledCountries();
+  if (view.stores) {                                   // chosen stores must sell in the chosen countries, otherwise show all stores again
+    const l = new Set(sel ? [...sel] : all);
+    if (![...view.stores].some((id) => { const a = accounts.find((x) => x.id === id); return a && (a.locales || []).some((x) => l.has(x)); })) view.stores = null;
+  }
   view.sel = sel && all.every((c) => sel.has(c)) ? null : sel;
   view.sub = null;
   const l = selLocales();
@@ -776,7 +835,7 @@ function setSel(sel, keepOpen) {
   render(); requestLoad();
 }
 function requestLoad(force = false) {
-  chrome.runtime.sendMessage({ type: 'load', period: view.period, range: curRange(), locales: selLocales(), dims: wantedDims(), force }).catch(() => {});
+  chrome.runtime.sendMessage({ type: 'load', period: view.period, range: curRange(), locales: selLocales(), dims: wantedDims(), force, ...(view.stores ? { accounts: [...view.stores] } : {}) }).catch(() => {});
 }
 async function saveSettings(patch, reload = true) {
   settings = { ...settings, ...patch };
@@ -823,12 +882,21 @@ document.addEventListener('click', async (e) => {
   else if (q('[data-sub]')) { view.sub = q('[data-sub]').dataset.sub; render(); requestLoad(); }
   else if (q('[data-all]')) { setSel(null); }
   else if (q('[data-only]')) { setSel(new Set([q('[data-only]').dataset.only])); }
+  else if (q('[data-store-pick]')) {
+    const id = q('[data-store-pick]').dataset.storePick;
+    view.stores = id ? new Set([id]) : null; view.storeOpen = false;
+    const a = id ? accounts.find((x) => x.id === id) : null;
+    const locs = a ? (a.locales || []).filter((l) => enabledCountries().includes(l)) : enabledCountries();
+    setSel(locs.length && locs.length < enabledCountries().length ? new Set(locs) : null);          // the countries follow the store
+  }
+  else if (q('[data-tagonly]')) { view.tags = new Set([q('[data-tagonly]').dataset.tagonly]); render(); }
+  else if (q('[data-tagallbtn]')) { view.tags = null; render(); }
   else if (q('[data-goto]')) { setSel(new Set([q('[data-goto]').dataset.goto])); }
   else if (q('[data-dd]')) {
     const k = q('[data-dd]').dataset.dd;
-    const was = k === 'metrics' ? view.ddOpen : k === 'period' ? view.perOpen : k === 'locs' ? view.locOpen : view.calOpen;
+    const was = k === 'metrics' ? view.ddOpen : k === 'period' ? view.perOpen : k === 'locs' ? view.locOpen : k === 'store' ? view.storeOpen : k === 'tags' ? view.tagOpen : view.calOpen;
     closePops();
-    if (!was) { if (k === 'metrics') view.ddOpen = true; else if (k === 'period') view.perOpen = true; else if (k === 'locs') view.locOpen = true; else { view.calOpen = true; openCal(); } }
+    if (!was) { if (k === 'metrics') view.ddOpen = true; else if (k === 'period') view.perOpen = true; else if (k === 'locs') view.locOpen = true; else if (k === 'store') view.storeOpen = true; else if (k === 'tags') { view.tagOpen = true; requestLoad(); } else { view.calOpen = true; openCal(); } }
     render();
   } else if (q('[data-pick]')) {
     const id = q('[data-pick]').dataset.pick;
@@ -870,6 +938,11 @@ document.addEventListener('change', async (e) => {
     const cur = new Set(selLocales());
     if (t.checked) cur.add(t.dataset.loc); else if (cur.size > 1) cur.delete(t.dataset.loc);
     setSel(cur, true);
+  } else if (t.dataset.tagbox !== undefined) {
+    const names = tagList().map((x) => x.name), cur = new Set(view.tags || names);
+    if (t.checked) cur.add(t.dataset.tagbox); else if (cur.size > 1) cur.delete(t.dataset.tagbox);
+    view.tags = names.every((n) => cur.has(n)) ? null : cur; render();
+  } else if (t.dataset.tagall) { view.tags = null; render();
   } else if (t.dataset.metric) {
     view.metrics.has(t.dataset.metric) ? view.metrics.delete(t.dataset.metric) : view.metrics.add(t.dataset.metric);
     render();

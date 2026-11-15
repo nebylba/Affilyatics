@@ -67,3 +67,14 @@ announces new orders, commission changes and bounty/bonus. The first fetch is on
 14 days are ignored. `detectConn`, `detectRewards`, `authAlert` and `guardDays` add their own events through
 `pushEvent` (gated by the per-type toggles). `persistNotify` stores them and optionally raises desktop notifications.
 Types: orders, commissions, bonuses, rewards, connections, signedout, dataissue.
+
+## Filters (popup)
+
+- **Store** (`view.stores`, a Set of store ids or null): view-only filter applied inside `activeAccounts()`, on top of the
+  Settings list `settings.accounts`. The dashboard sends `accounts: [...]` in the `load` message so only that store is
+  fetched; the 5-minute alarm (`prewarm`) ignores it, so alerts keep covering every store.
+- **Countries** (`view.sel`): `setSel()` also widens `view.stores` when the chosen stores do not sell in the chosen
+  countries, so the screen is never empty. Picking a store sets the countries to that store's countries.
+- **Tags** (`view.tags`): applied in `collect('tag')` only (the Tracking IDs table); `collect('tag', true)` returns the
+  unfiltered list used by the menu. The `tag` dimension is only requested when that table or the Tags menu is open.
+- Both are persisted in `viewState`.
