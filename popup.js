@@ -144,7 +144,7 @@ const cell = (n, f) => `<td class="n ${n ? '' : 'zero'}">${f}</td>`;
 function primaryCurrency(dayRows) {
   const t = {};
   for (const r of dayRows) t[r.cur] = (t[r.cur] || 0) + r.earnings;
-  const best = Object.entries(t).sort((a, b) => b[1] - a[1])[0];
+  const best = Object.entries(t).sort((a, b) => usdish(b[1], b[0]) - usdish(a[1], a[0]))[0];
   return best ? best[0] : LOCALES[selLocales()[0]]?.cur || 'USD';
 }
 
@@ -333,7 +333,7 @@ Tiers: ${table}`;
 function totalCardHTML(dayRows) {
   const byTag = tagMode();
   const { byCur } = sumByCurrency(dayRows, byTag ? [] : collect('income'), byTag ? [] : collect('rewards'));
-  const curs = Object.keys(byCur).sort((a, b) => byCur[b].total - byCur[a].total);
+  const curs = Object.keys(byCur).sort((a, b) => usdish(byCur[b].total, b) - usdish(byCur[a].total, a));
   const main = curs[0];
   const t = main ? byCur[main] : null;
   const amt = (id) => (t ? fmtMoney(t[id], main) : '—');
@@ -429,7 +429,7 @@ function pendingShipments(rows) {
 function pendingStat() {
   const { rows, loaded } = pendingRows();
   const p = pendingShipments(rows);
-  const curs = Object.keys(p).sort((a, b) => p[b].est - p[a].est);
+  const curs = Object.keys(p).sort((a, b) => usdish(p[b].est, b) - usdish(p[a].est, a));
   const items = curs.reduce((s, c) => s + p[c].items, 0);
   const value = curs.length
     ? ('~' + fmtMoney(p[curs[0]].est, curs[0]) + (curs.length > 1 ? `<span class="muted xtra" title="${esc(curs.slice(1).map((c) => '~' + fmtMoney(p[c].est, c)).join(' · '))}">+${curs.length - 1}</span>` : '')) 
@@ -462,7 +462,7 @@ function returnedStat(dayRows, loc) {
     if (t.mixed) { approx = true; if (t.pShp > 0) { rev -= t.mixed * t.pRev / t.pShp; earn -= t.mixed * t.pEarn / t.pShp; } }
     out[c] = { ret: t.ret, rev, earn, approx };
   }
-  const curs = Object.keys(out).sort((a, b) => out[a].earn - out[b].earn);
+  const curs = Object.keys(out).sort((a, b) => usdish(out[a].earn, a) - usdish(out[b].earn, b));
   const items = curs.reduce((s, c) => s + out[c].ret, 0);
   const val = (c) => (out[c].approx ? '~' : '') + fmtMoney(out[c].earn, c);
   const value = curs.length ? val(curs[0]) + (curs.length > 1 ? `<span class="muted xtra" title="${esc(curs.slice(1).map(val).join(' · '))}">+${curs.length - 1}</span>` : '') : '<span class="muted">None</span>';

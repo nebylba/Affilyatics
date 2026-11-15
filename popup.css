@@ -133,7 +133,7 @@ input[type=date] { font: inherit; color: var(--text); border: 1px solid var(--li
 .thead { display: flex; flex-direction: column; min-width: 0; padding: 6px 10px; border-radius: 5px; border: 1px solid var(--s-earnings); background: color-mix(in srgb, var(--s-earnings) 16%, transparent); }
 .thead .l { color: var(--s-earnings); font-weight: 600; font-size: 13px; line-height: 1.3; }
 .big { color: var(--s-earnings); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; }
-.sub { height: 16px; font-size: 12px; line-height: 16px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { height: 16px; font-size: 12px; line-height: 16px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; contain: inline-size; }   /* a long list of other currencies must not widen its column */
 .tiles { display: grid; grid-template-columns: repeat(5, minmax(max-content, 1fr)); gap: 0 12px; min-width: 0; } /* columns never narrower than their label + amount */
 .tile { min-width: 0; }
 .tile.zero { opacity: .45; }

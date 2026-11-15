@@ -37,6 +37,11 @@ const DEFAULTS = {
   notify: { orders: true, commissions: true, bonuses: true, rewards: true, enroll: true, connections: true, signedout: true, dataissue: true, desktop: false }
 };
 
+// Rough US-dollar value of one unit of each currency. Used ONLY to decide which currency is the "main" (biggest) one when a view
+// mixes several: amounts are never converted or added up across currencies.
+const APPROX_USD = { USD: 1, CAD: 0.73, GBP: 1.27, EUR: 1.09, SEK: 0.095, PLN: 0.25, AUD: 0.65, JPY: 0.0067, INR: 0.012, BRL: 0.18, MXN: 0.05, TRY: 0.03, AED: 0.27, SAR: 0.27, SGD: 0.74 };
+const usdish = (n, cur) => n * (APPROX_USD[cur] || 1);
+
 const pad2 = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
