@@ -4,6 +4,7 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Corner radius reduced** (about 40% of before: cards 10px -> 4px, controls 8px -> 3px, pills and dots 3px, chart bars 1px).
 - **Amazon report gap protection**: ledger of recent days, held rows, orange chart band with tooltip note, banner with
   "Open Amazon report" / "Copy details", Dates-tab badge, `dataissue` notifications (missing / back). See
   docs/AMAZON_REPORT_GAP.md.
