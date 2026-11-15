@@ -4,6 +4,12 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Daily clicks per tag in the chart**: with a tag filter on, the chart shows the real daily clicks of the selected tags
+  (new dimension `tagday`, one `/reporting/summary` request per tag, store and country, using Amazon's own Tracking ID
+  filter: the tag's numeric id + its name; the ids are read from the Tracking ID dropdown of the earnings page and kept in
+  the login context as `tagIds`). Checked on the live account: Amazon returns clicks per day for a tag, but every sales
+  field on those days is empty (a tag's sales only exist as period totals), so earnings and orders stay in the cards.
+  "Other" = the day's total clicks minus the named tags. The Dates tab still shows all tags, with a note.
 - The temporary test alert for the Creator Rewards enrollment notification was added and then removed at the owner's request
   (reloading no longer adds any sample alert; left-over samples are purged).
 - **Desktop alerts checkbox** in the notifications popup header (same setting as Settings > Notifications).

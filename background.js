@@ -32,7 +32,7 @@ const DIMS = {
   product: { group: 'linked_product', columns: 'linked_product,' + FULL, sort: 'total_earnings', limit: '100' }
 };
 // lower = fetched first, so the numbers people look at first appear first
-const PRIORITY = { day: 0, rewards: 1, tag: 2, cat: 2, product: 2, connections: 3 };
+const PRIORITY = { day: 0, rewards: 1, tag: 2, tagday: 2, cat: 2, product: 2, connections: 3 };
 const BACKGROUND_FROM = 3;     // priority >= 3 runs after the dashboard is already considered loaded
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -108,7 +108,7 @@ async function fetchContext(storeId, base = BASE) {
   const ps = JSON.parse(attr(psTag[0], 'data-page-state'));
   const csrf = (html.match(/<meta[^>]*name="csrf-token"[^>]*content="([^"]*)"/) || [])[1];
   if (!ps.associateIdentityToken || !csrf) throw new Error('Auth tokens not found on page');
-  return { ps, csrf, html, base, at: Date.now() };
+  return { ps, csrf, html, base, at: Date.now(), tagIds: tagIdsFromHtml(html) };   // tagIds: tracking-ID name -> numeric id (for the daily clicks per tag)
 }
 
 const ctxMem = new Map();
@@ -138,7 +138,7 @@ async function ctxForUncached(storeId, base = BASE, { fresh = false } = {}) {
   }
   const v = await fetchContext(storeId, base);
   if (storeId && v.ps.storeId !== storeId) throw new Error(`Store ${storeId} not switchable`);
-  const slim = { ps: v.ps, csrf: v.csrf, base, at: v.at };
+  const slim = { ps: v.ps, csrf: v.csrf, base, at: v.at, tagIds: v.tagIds };
   const all = await readCtxs();
   // a page fetched without a store id is the default store's page: cache it under that store's key too
   for (const key of new Set([k, ctxKey(v.ps.storeId, base)])) { ctxMem.set(key, slim); all[key] = slim; }
@@ -214,8 +214,8 @@ function checkStatus(res, what) {
 }
 
 // Summary report ("earning" / "connections"): per-day rows + Amazon's own last_updated stamp.
-async function summaryChunk(ctx, acct, loc, type, [start, end]) {
-  const q = new URLSearchParams({ 'query[start_date]': start, 'query[end_date]': end, 'query[type]': type, 'query[storeId]': acct, 'query[locale]': loc, store_id: acct });
+async function summaryChunk(ctx, acct, loc, type, [start, end], extra = {}) {
+  const q = new URLSearchParams({ 'query[start_date]': start, 'query[end_date]': end, 'query[type]': type, 'query[storeId]': acct, 'query[locale]': loc, ...extra, store_id: acct });
   const res = await request(`${ctx.base}/reporting/summary?${q}`, { credentials: 'include', headers: apiHeaders(ctx, acct, loc) });
   checkStatus(res, `${type} ${acct}/${loc} ${start}..${end}`);
   const j = await res.json();
@@ -239,6 +239,33 @@ async function fetchDay(ctx, acct, loc, range) {
     });
   }
   return { rows, lu };
+}
+
+// Daily clicks per tracking ID. Amazon reports clicks per day for one tag (its Tracking ID filter sends the tag's numeric id plus its name),
+// but sales are empty on those days: a tag's sales only exist as period totals (see the tag table). The numeric ids are in the
+// Tracking ID dropdown of the earnings page.
+function tagIdsFromHtml(html) {
+  const ids = {};
+  for (const m of String(html).matchAll(/data-ac-report-widget-dropdown-select-multi="([^"]*)"/g)) {
+    try {
+      const o = JSON.parse(decode(m[1]));
+      if (o && o.name === 'report-download-trackingIds' && /^\d+$/.test(String(o.value)) && o.label) ids[o.label] = String(o.value);
+    } catch (_) { /* not a tag option */ }
+  }
+  return ids;
+}
+async function fetchTagDays(ctx, acct, loc, range) {
+  const rows = [];
+  for (const [label, id] of Object.entries(ctx.tagIds || tagIdsFromHtml(ctx.html || ''))) {
+    for (const ch of splitRange(range)) {
+      const { records } = await summaryChunk(ctx, acct, loc, 'earning', ch, { 'query[tag_id]': id, 'query[tag_value]': label });
+      for (const r of records) {
+        const clicks = num(r.clicks);
+        if (clicks) rows.push({ name: String(r.day || r.date_range_start || '').slice(0, 10), tag: label, clicks });
+      }
+    }
+  }
+  return { rows };
 }
 
 // Creator Connections (field names not verified against real income: the account had none).
@@ -640,6 +667,7 @@ async function runFetch(t, range) {
   const go = (ctx) => {
     if (t.dim === 'day') return fetchDay(ctx, t.acct, t.loc, range);
     if (t.dim === 'connections') return fetchConnections(ctx, t.acct, t.loc, range);
+    if (t.dim === 'tagday') return fetchTagDays(ctx, t.acct, t.loc, range);
     return fetchTable(ctx, t.acct, t.loc, t.dim, range);
   };
   if (t.dim === 'rewards') return fetchRewards(t.acct, range, t.force);
@@ -691,7 +719,7 @@ async function load(req) {
         const e = cache[key];
         // Refresh = re-check the numbers you look at. Quiet countries (checked hourly) and slow data
         // (Creator Rewards / Connections) are only re-downloaded when they are due.
-        const forced = req.force && (dim === 'day' || dim === 'rewards' || dim === 'tag' || dim === 'cat' || dim === 'product'); // Refresh = everything, quiet countries included
+        const forced = req.force && (dim === 'day' || dim === 'rewards' || dim === 'tag' || dim === 'tagday' || dim === 'cat' || dim === 'product'); // Refresh = everything, quiet countries included
         if (!forced && !isFresh(dim, e, range)) {
           const d = deriveFromWider(cache, a.id, loc, dim, range);
           if (d) { cache[key] = d; derivedAny = true; continue; } // no request needed

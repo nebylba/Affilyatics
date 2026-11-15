@@ -77,8 +77,9 @@ Types: orders, commissions, bonuses, rewards, connections, signedout, dataissue.
   countries, so the screen is never empty. Picking a store sets the countries to that store's countries.
 - **Tags** (`view.tags`): `collect('tag')` filters the Tracking IDs table; `tagAgg()` builds one total row per store x country
   from the tracking-ID table and replaces the daily rows for the cards, the total income and the countries table
-  (`tagMode()`); the chart and the Dates tab keep the unfiltered daily rows (Amazon has no daily split by tag: its
-  per-day tag report puts sales under "Other"). `collect('tag', true)` is the unfiltered list for the menu. The `tag`
+  (`tagMode()`); the chart shows `tagDayRows()` (daily clicks of the selected tags, from the `tagday` dimension: Amazon
+  returns clicks per day for a tag but no daily sales, which only exist as period totals); the Dates tab keeps the
+  unfiltered daily rows. `collect('tag', true)` is the unfiltered list for the menu. The `tag`
   dimension is requested when a tag filter is active, or the table / menu is open.
 - Both are persisted in `viewState`.
 

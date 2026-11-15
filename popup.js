@@ -57,6 +57,7 @@ const wantedDims = () => {
   const s = currentSub();
   const d = s === 'countries' || s === 'dates' ? ['day', 'connections', 'rewards'] : ['day', 'connections', 'rewards', s];
   if ((view.tagOpen || view.tags) && !d.includes('tag')) d.push('tag');   // the Tags filter needs the tracking-ID table
+  if (view.tags && !d.includes('tagday')) d.push('tagday');             // ... and the daily clicks per tag for the chart
   return d;
 };
 
@@ -471,12 +472,14 @@ function kpiHTML(dayRows) {
 function chartHTML(dayRows) {
   const cur = primaryCurrency(dayRows);
   const { pts, group, totals, auto } = buildPoints(dayRows, cur);
-  const vis = SERIES.filter((s) => view.metrics.has(s.id));
+  const vis = chartSeries();
   const multiCur = new Set(dayRows.map((r) => r.cur)).size > 1;
   const legend = vis.map((s) => `<span class="leg"><i style="background:var(--s-${s.id})"></i>${s.label} <b>${fmtSeries(s, totals[s.id], cur)}</b></span>`).join('');
-  const caption = vis.length
-    ? `${esc(vis[0].label)}${vis[0].money ? ` (${cur})` : ''}. Other series are scaled to their own peak so shapes stay readable; hover for exact values.`
-    : '';
+  const caption = chartIsTag()
+    ? `Daily clicks of the selected tags (exact, from Amazon). Amazon does not report earnings or orders per day for a tag: those are only period totals, shown in the cards.`
+    : vis.length
+      ? `${esc(vis[0].label)}${vis[0].money ? ` (${cur})` : ''}. Other series are scaled to their own peak so shapes stay readable; hover for exact values.`
+      : '';
   return `<section class="panel">
     <div class="panelhead">
       <div class="legend">${legend || '<span class="muted small">No metric selected: use the Metrics menu.</span>'}</div>
@@ -521,6 +524,29 @@ function tagAgg() {
   return seen ? out : null;          // null = tracking IDs not loaded yet: show everything meanwhile
 }
 const tagMode = () => !!view.tags && tagAgg() !== null;
+// Daily clicks of the selected tags (exact, from Amazon). "Other" = the day's total clicks minus the clicks of every named tag.
+function tagDayRows() {
+  if (!view.tags) return null;
+  const out = new Map(); let seen = false;
+  const add = (a, loc, day, clicks) => {
+    if (!clicks) return;
+    const k = `${a.id}|${loc}|${day}`;
+    const o = out.get(k) || { name: day, clicks: 0, ordered: 0, shipped: 0, returned: 0, orderedRevenue: 0, revenue: 0, earnings: 0, bounty: 0, bonus: 0, loc, acct: a.id, cur: LOCALES[loc].cur };
+    o.clicks += clicks; out.set(k, o);
+  };
+  for (const loc of selLocales()) for (const a of activeAccounts()) {
+    if (!(a.locales || []).includes(loc)) continue;
+    const e = entry(a.id, loc, 'tagday'); if (!e) continue;
+    seen = true;
+    const named = new Map();
+    for (const r of e.rows) { named.set(r.name, (named.get(r.name) || 0) + r.clicks); if (view.tags.has(r.tag)) add(a, loc, r.name, r.clicks); }
+    if (view.tags.has('Other')) { const d = entry(a.id, loc, 'day'); if (d) for (const r of d.rows) add(a, loc, r.name, Math.max(0, (r.clicks || 0) - (named.get(r.name) || 0))); }
+  }
+  return seen ? [...out.values()].sort((x, y) => (x.name < y.name ? -1 : 1)) : null;
+}
+const chartRows = () => (view.tags ? (tagDayRows() || collect('day')) : collect('day'));
+const chartIsTag = () => !!view.tags && tagDayRows() !== null;
+const chartSeries = () => (chartIsTag() ? SERIES.filter((x) => x.id === 'clicks') : SERIES.filter((x) => view.metrics.has(x.id)));
 const statOff = (label, id) => `<div class="stat" style="--c:var(--s-${id})"><i></i><span class="l">${label}</span><b><span class="muted">—</span></b></div>`;
 
 // ---- Store filter (under the logo) and Tags filter (after Countries) ---------------------------------
@@ -564,7 +590,7 @@ function tagsDropdownHTML() {
   const menu = view.tagOpen
     ? `<div class="menu menuright tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>cards, total income, countries table and Tracking IDs</b>.</p></div>`
     : '';
-  const help = (view.tags ? `Tag filter on: ${view.tags.size} of ${total} tags. ` : 'Tags filter. ') + 'The cards, total income and countries table show only the selected tags. The chart and the Dates tab cannot be split by tag: Amazon reports daily totals for all tags together.';
+  const help = (view.tags ? `Tag filter on: ${view.tags.size} of ${total} tags. ` : 'Tags filter. ') + 'The cards, total income and countries table show only the selected tags. The chart shows their daily clicks. Amazon does not report earnings or orders per day for a tag, so the Dates tab shows all tags.';
   return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div><span class="help taghelp ${view.tags ? 'pulse' : ''}" tabindex="0" data-tip="${esc(help)}">?</span>`;
 }
 
@@ -625,6 +651,7 @@ function tableHTML(dayRows, cardRows) {
     body = `<div class="tablewrap"><table><thead><tr><th>Date</th>${multi() ? '<th>Country</th>' : ''}<th class="n">Clicks</th><th class="n">Ordered</th><th class="n">Conv.</th><th class="n">Ordered revenue</th><th class="n">Shipped</th><th class="n">Returned</th><th class="n">Revenue</th><th class="n">Earnings</th><th class="n">Bounties</th></tr></thead><tbody>` +
       rows.slice(0, 500).map((r) => `<tr${r.held ? ' class="held"' : ''}><td>${esc(r.date)}${r.held ? ' <span class="hbadge" title="Amazon&#39;s report is currently missing this day. These are the last values we saw, not confirmed by Amazon yet.">held</span>' : ''}</td>${multi() ? `<td><span class="cn">${flagSVG(r.loc)}${esc(LOCALES[r.loc].short)}</span></td>` : ''}${cell(r.clicks, fmtNum(r.clicks))}${cell(r.ordered, fmtNum(r.ordered))}<td class="n">${pct(r.ordered, r.clicks)}</td>${cell(r.orderedRevenue, fmtMoney(r.orderedRevenue, r.cur))}${cell(r.shipped, fmtNum(r.shipped))}${cell(r.returned, fmtNum(r.returned))}${cell(r.revenue, fmtMoney(r.revenue, r.cur))}${cell(r.earnings, fmtMoney(r.earnings, r.cur))}${cell(r.bounty, fmtMoney(r.bounty, r.cur))}</tr>`).join('') + '</tbody></table></div>';
     body = rows.length ? body : empty(wait);
+    if (tagMode()) body = '<p class="muted small" style="margin:0 0 8px">Amazon does not report daily sales per tag, so this table shows all tags.</p>' + body;
   } else {
     if (!haveData(sub)) return tabs + empty(wait);
     const raw = collect(sub);
@@ -831,16 +858,17 @@ function heldDiagnostics(dayRows) {
 function mainHTML() {
   if (status.signedOut) return signedOutHTML();
   const dayRows = collect('day');
+  const cRows = chartRows();
   const loadingOnly = !dayRows.length && isLoading();
-  const cur = primaryCurrency(dayRows);
-  const metricsDD = metricsDropdownHTML(buildPoints(dayRows, cur).totals, cur);
+  const cur = primaryCurrency(cRows);
+  const metricsDD = metricsDropdownHTML(buildPoints(cRows, cur).totals, cur);
   const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div></div>`;
   const siteErr = Object.entries(status.siteErrors || {}).filter(([loc]) => selLocales().includes(loc))
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
   const err = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
   if (loadingOnly) return nav + err + '<section class="panel state"><p class="muted">Loading your Amazon Associates data…</p></section>';
   const cardRows = tagAgg() || dayRows;
-  return kpiHTML(cardRows) + nav + heldBannerHTML(dayRows) + err + chartHTML(dayRows) + tableHTML(dayRows, cardRows);
+  return kpiHTML(cardRows) + nav + heldBannerHTML(dayRows) + err + chartHTML(cRows) + tableHTML(dayRows, cardRows);
 }
 
 // Filters are remembered: closing the popup and reopening it brings back the same view.
@@ -894,11 +922,11 @@ function render() {
   const main = $('#main');
   main.innerHTML = view.showSettings ? settingsHTML() : mainHTML();
   if (!view.showSettings && !status.signedOut) {
-    const dayRows = collect('day');
+    const dayRows = chartRows();
     if (dayRows.length) {
       const cur = primaryCurrency(dayRows);
       const { pts, group } = buildPoints(dayRows, cur);
-      wireChart(pts, SERIES.filter((s) => view.metrics.has(s.id)), cur, group);
+      wireChart(pts, chartSeries(), cur, group);
     }
   }
 }
@@ -985,7 +1013,7 @@ document.addEventListener('click', async (e) => {
     const locs = a ? (a.locales || []).filter((l) => enabledCountries().includes(l)) : enabledCountries();
     setSel(locs.length && locs.length < enabledCountries().length ? new Set(locs) : null);          // the countries follow the store
   }
-  else if (q('[data-tagonly]')) { view.tags = new Set([q('[data-tagonly]').dataset.tagonly]); render(); }
+  else if (q('[data-tagonly]')) { view.tags = new Set([q('[data-tagonly]').dataset.tagonly]); render(); requestLoad(); }
   else if (q('[data-tagallbtn]')) { view.tags = null; render(); }
   else if (q('[data-goto]')) { setSel(new Set([q('[data-goto]').dataset.goto])); }
   else if (q('[data-dd]')) {
@@ -1037,8 +1065,8 @@ document.addEventListener('change', async (e) => {
   } else if (t.dataset.tagbox !== undefined) {
     const names = tagList().map((x) => x.name), cur = new Set(view.tags || names);
     if (t.checked) cur.add(t.dataset.tagbox); else cur.delete(t.dataset.tagbox);
-    view.tags = names.every((n) => cur.has(n)) ? null : cur; render();
-  } else if (t.dataset.tagall) { view.tags = t.checked ? null : new Set(); render();     // unticking "All tags" = none selected
+    view.tags = names.every((n) => cur.has(n)) ? null : cur; render(); if (view.tags) requestLoad();
+  } else if (t.dataset.tagall) { view.tags = t.checked ? null : new Set(); render(); if (view.tags) requestLoad();     // unticking "All tags" = none selected
   } else if (t.dataset.metric) {
     view.metrics.has(t.dataset.metric) ? view.metrics.delete(t.dataset.metric) : view.metrics.add(t.dataset.metric);
     render();
