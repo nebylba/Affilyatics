@@ -1,6 +1,6 @@
 // Builds the website's LIVE DEMO from the REAL extension files, so the demo always is the real dashboard.
 // Usage: node tools/build-demo.js "C:/Perso/EBLYN/Projects/eblyn.com/Affilyatics/demo"
-// It writes <demo>/app/* (popup.js, shared.js, theme.js, popup.css) and <demo>/index.html (from popup.html).
+// It writes <demo>/app/* (popup.js, shared.js, plan.js, theme.js, popup.css) and <demo>/index.html (from popup.html).
 // demo.js (fake chrome + demo data), demo.css and demo-ui.js live in the website folder and are not touched.
 const fs = require('fs'), path = require('path');
 const demo = process.argv[2];
@@ -8,7 +8,7 @@ if (!demo) { console.error('Usage: node tools/build-demo.js <demo folder>'); pro
 const root = path.join(__dirname, '..');
 const app = path.join(demo, 'app');
 fs.mkdirSync(app, { recursive: true });
-for (const f of ['popup.js', 'shared.js', 'theme.js']) fs.copyFileSync(path.join(root, f), path.join(app, f));
+for (const f of ['popup.js', 'shared.js', 'plan.js', 'theme.js']) fs.copyFileSync(path.join(root, f), path.join(app, f));
 // the website keeps the fonts once, in ../../assets/fonts
 fs.writeFileSync(path.join(app, 'popup.css'), fs.readFileSync(path.join(root, 'popup.css'), 'utf8').replace(/url\("fonts\//g, 'url("../../assets/fonts/'));
 
@@ -21,6 +21,6 @@ sub('<link rel="stylesheet" href="popup.css">', '<link rel="stylesheet" href="ap
 sub('src="icons/logo-light.svg"', 'src="../assets/logo-light.svg"');
 sub('src="icons/logo-dark.svg"', 'src="../assets/logo-dark.svg"');
 sub('<body>', '<body>\n<div class="demobar"><b>Live demo</b> with demo data. Everything works: try the Store, Countries and Tags filters, the period, the tabs, the bell and Settings. <a class="demobtn" href="../#plans">Try it free for 14 days</a></div>');
-sub('<script src="shared.js"></script>\n<script src="popup.js"></script>', '<script src="demo.js"></script>\n<script src="app/shared.js"></script>\n<script src="app/popup.js"></script>\n<script src="demo-ui.js"></script>');
+sub('<script src="shared.js"></script>\n<script src="plan.js"></script>\n<script src="popup.js"></script>', '<script src="demo.js"></script>\n<script src="app/shared.js"></script>\n<script src="app/plan.js"></script>\n<script src="app/popup.js"></script>\n<script src="demo-ui.js"></script>');
 fs.writeFileSync(path.join(demo, 'index.html'), h);
 console.log('Demo built in ' + demo);

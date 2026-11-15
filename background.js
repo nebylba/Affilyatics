@@ -16,13 +16,15 @@
 //   * quiet countries (no traffic) and slow data (Creator Connections, Creator Rewards) are checked rarely
 //   * the popup shows cached data immediately; this worker pre-warms the cache on browser start
 
-importScripts('shared.js');
+importScripts('shared.js', 'plan.js', 'license.js');
 
+const isPro = async () => planOf(await getLicense()) === 'pro';
 const REFRESH_MINUTES = 5;     // how often the alarm wakes the worker (cheap: only due entries are fetched)
 const BASE = 'https://affiliate-program.amazon.com';
 const CTX_MAX_AGE_MIN = 20;    // reuse login tokens this long (also refreshed when Amazon answers 401/403)
 const DISCOVERY_MIN = 360;     // store/country discovery cache
 const CACHE_VERSION = 2;       // entries written by an older layout are treated as stale
+let DUE_MIN = FEATURES.pro.autoRefreshMin - 0.5;   // minutes before day/rewards data is due again; set from the plan in load()
 
 const METRICS = 'clicks,total_ordered_items,total_ordered_revenue,shipped_items,returned_items,total_revenue,total_earnings';
 const FULL = 'clicks,total_ordered_items,conversion_rate,total_ordered_revenue,shipped_items,returned_items,total_revenue,total_earnings,hva_total_earnings';
@@ -166,9 +168,9 @@ function discover(html, ps) {
 }
 
 // Stores/countries change rarely: discover once, reuse for hours (5 min after a partial failure).
-async function discoverAll(settings, req) {
+async function discoverAll(settings, req, pro = true) {
   const st = await chrome.storage.local.get(['accounts', 'accountsAt', 'accountsSiteErrors']);
-  const sepLocs = [...new Set([...req.locales, ...settings.countries].filter((l) => SEPARATE_SITES[l]))];
+  const sepLocs = pro ? [...new Set([...req.locales, ...settings.countries].filter((l) => SEPARATE_SITES[l]))] : [];
   const cachedErr = st.accountsSiteErrors || {};
   const age = Date.now() - (st.accountsAt || 0);
   const maxAge = (Object.keys(cachedErr).length ? 5 : DISCOVERY_MIN) * 60000;
@@ -446,11 +448,11 @@ async function fetchRewards(acct, [s, e], fresh) {
 function dueAfterMs(dim, e, range) {
   const MIN = 60000;
   const current = range[1] >= ymd(new Date());
-  if (dim === 'rewards') return 4.5 * MIN;
+  if (dim === 'rewards') return DUE_MIN * MIN;
   if (dim === 'connections') return (current ? 360 : 720) * MIN;
   if (!current) return 60 * MIN;
   if (dim !== 'day') return 10 * MIN;                       // tag / category / product tables
-  return 4.5 * MIN;                                          // every store and country, every 5-minute alarm (quiet ones too)
+  return DUE_MIN * MIN;                                      // Pro: every 5-minute alarm (quiet ones too); Free: about every 30 minutes
 }
 const isFresh = (dim, e, range) => !!e && e.v === CACHE_VERSION && e.range[0] === range[0] && e.range[1] === range[1] && Date.now() - e.at < dueAfterMs(dim, e, range);
 const hasActivity = (rows) => rows.some((r) => r.clicks || r.ordered || r.shipped || r.earnings || r.orderedRevenue || r.bounty || r.bonus);
@@ -542,6 +544,7 @@ const siteUrl = (loc) => (SEPARATE_SITES[loc] || 'https://affiliate-program.amaz
 const daysAgo = (n) => ymd(new Date(Date.now() - n * 86400000));
 
 async function guardDays(t, res, range) {
+  if (!(await isPro())) return;                              // Free shows Amazon's report exactly as it comes
   const { ledger = {} } = await chrome.storage.local.get('ledger');
   const key = `${t.acct}|${t.loc}`;
   const L = (ledger[key] ||= {});
@@ -687,14 +690,22 @@ async function load(req) {
   const st = await chrome.storage.local.get(['settings', 'cache']);
   const settings = { ...DEFAULTS, ...(st.settings || {}) };
   const cache = st.cache || {};
+  const pro = planOf(await getLicense()) === 'pro';
+  DUE_MIN = FEATURES[pro ? 'pro' : 'free'].autoRefreshMin - 0.5;
   notifyConf = { ...NOTIFY_DEFAULT, ...(settings.notify || {}) };
+  if (!pro) { for (const k of Object.keys(notifyConf)) if (!FREE_NOTIFY.includes(k)) notifyConf[k] = false; }   // Free: orders, sign-outs, report problems; no desktop pop-ups
   notifySnaps = null;
+  if (!pro) {
+    if (!FREE_PERIODS.includes(req.period)) { req.period = 'month'; req.range = undefined; }          // periods beyond the Free ones
+    req.locales = (req.locales || []).filter((l) => !SEPARATE_SITES[l]);
+    req.dims = (req.dims || []).filter((d) => d !== 'tag' && d !== 'tagday' && d !== 'cat' && d !== 'product');
+  }
   const weekAgo = Date.now() - 7 * 86400000;
   for (const k of Object.keys(cache)) if (cache[k].at < weekAgo) delete cache[k];
 
   await setStatus({ loading: true, done: 0, total: 0, errors: [], error: null, startedAt: Date.now() });
   try {
-    const { accounts, siteErrors } = await discoverAll(settings, req);
+    const { accounts, siteErrors } = await discoverAll(settings, req, pro);
     await chrome.storage.local.set({ accounts });
     await setStatus({ siteErrors: { ...siteErrors } });
     for (const loc of Object.keys(SEPARATE_SITES)) {
@@ -703,7 +714,7 @@ async function load(req) {
       else if (!siteErrors[loc]) await authClear(`site:${loc}`);
     }
     if (my !== gen) return;
-    const accts = accounts.filter((a) => (!settings.accounts || settings.accounts.includes(a.id)) && (!req.accounts || req.accounts.includes(a.id)));   // req.accounts: the dashboard is looking at one store only
+    const accts = accounts.filter((a) => (pro || a.base === BASE) && (!settings.accounts || settings.accounts.includes(a.id)) && (!req.accounts || req.accounts.includes(a.id)));   // Free: the main Associates site only   // req.accounts: the dashboard is looking at one store only
 
     const okRange = (r) => Array.isArray(r) && r.length === 2 && r.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)) && r[0] <= r[1] && r[0] >= '2010-01-01';
     const range = req.period === 'custom' && okRange(req.range) ? req.range : rangeFor(req.period === 'custom' ? 'month' : req.period);
@@ -852,13 +863,23 @@ async function purgeDemoNotifications() {
 }
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES, delayInMinutes: 0.1 });
+  chrome.alarms.create('license', { periodInMinutes: PLAN_CFG.recheckHours * 60, delayInMinutes: 0.2 });
   purgeDemoNotifications().catch(() => {});                     // removes any left-over sample alerts
 });
-chrome.runtime.onStartup.addListener(() => { chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES }); prewarm(); });
-chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'refresh') prewarm(); });
+chrome.runtime.onStartup.addListener(() => { chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES }); chrome.alarms.create('license', { periodInMinutes: PLAN_CFG.recheckHours * 60 }); licenseCheckIfDue().catch(() => {}).then(prewarm); });
+chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'refresh') prewarm(); else if (a.name === 'license') licenseCheckIfDue(true).catch(() => {}); });
 
 chrome.runtime.onMessage.addListener((msg, _s, send) => {
   if (msg?.type === 'load') { load(msg); send({ ok: true }); }
+  else if (msg?.type === 'license') {      // trial / activate / deactivate / refresh, asked from Settings -> Plan
+    const a = msg.action;
+    const run = a === 'trial' ? licenseSync('trial', { email: typeof msg.email === 'string' ? msg.email.trim().slice(0, 190) : undefined })
+      : a === 'activate' ? licenseSync('activate', { licenseKey: String(msg.key || '').trim().slice(0, 80) })
+      : a === 'deactivate' ? getLicense().then((l) => licenseSync('deactivate', { licenseKey: l.key || '' }))
+      : licenseCheckIfDue(a !== 'check');            // 'check' (dashboard opened): only if the answer is older than 12 h; 'refresh' ("Check again"): always
+    run.then((r) => send(r), () => send({ ok: false, error: 'network' }));
+    return true;
+  }
   return false;
 });
 

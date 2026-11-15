@@ -15,9 +15,30 @@ const SERIES = [
 ];
 
 let settings = { ...DEFAULTS };
-let cache = {}, status = {}, accounts = [];
+let cache = {}, status = {}, accounts = [], rawAccounts = [], license = {};
 let notif = { items: [], readAt: 0 };
 const view = { sel: null, stores: null, tags: null, storeOpen: false, tagOpen: false, locOpen: false, period: 'month', from: null, to: null, sub: null, metrics: new Set(['earnings', 'clicks', 'ordered']), group: null, cumulative: false, showSettings: false, ddOpen: false, perOpen: false, calOpen: false, notifOpen: false, notifFrom: 0, notifMsg: '', cal: { month: null, start: null, end: null, picking: false } };
+
+// ---- plan (Free / Pro): what the stored license answer allows (see plan.js) ----------------------------
+const isProNow = () => planOf(license) === 'pro';
+const isSepAccount = (a) => Object.values(SEPARATE_SITES).includes(a.base);
+const setAccounts = (raw) => { rawAccounts = raw || []; accounts = isProNow() ? rawAccounts : rawAccounts.filter((a) => !isSepAccount(a)); };
+const periodOk = (id) => isProNow() || FREE_PERIODS.includes(id);
+const tabOk = (id) => isProNow() || FEATURES.free.tabs.includes(id);
+const trialAvailable = () => !(license.ent && (license.ent.trialEndsAt || license.ent.reason === 'trial_ended'));
+const LOCK = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const PRO_PILL = '<span class="propill">PRO</span>';
+// Free users see what Pro adds, and a click explains it (view.upsell = which feature asked).
+function openUpsell(key) { closePops(); view.upsell = UPSELL[key] ? key : 'plan'; render(); }
+// A view that Free does not include (restored from an earlier Pro/trial session, or after a trial ended) falls back to a Free one.
+function clampView() {
+  if (isProNow()) return;
+  if (!periodOk(view.period)) { view.period = 'month'; view.from = view.to = null; view.group = null; }
+  if (!periodOk(settings.period)) settings.period = 'month';
+  view.tags = null;
+  if (view.sub && !tabOk(view.sub)) view.sub = null;
+  if (view.stores) { const l = [...view.stores].filter((id) => accounts.some((a) => a.id === id)); view.stores = l.length && l.length < accounts.length ? new Set(l) : null; }
+}
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>';
 const ICON_SUN = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -43,7 +64,7 @@ const FIELDS = ['clicks', 'ordered', 'shipped', 'returned', 'orderedRevenue', 'r
 const zero = () => Object.fromEntries(FIELDS.map((f) => [f, 0]));
 
 // ---- state helpers ------------------------------------------------------------------------
-const enabledCountries = () => settings.countries.filter((c) => LOCALES[c]);
+const enabledCountries = () => { const l = settings.countries.filter((c) => LOCALES[c] && (isProNow() || !SEPARATE_SITES[c])); return l.length ? l : ['US']; };
 // Stores: the ones included in Settings, narrowed by the Store filter under the logo (view.stores = a Set of store ids, or null for all).
 const activeAccounts = () => accounts.filter((a) => (!settings.accounts || settings.accounts.includes(a.id)) && (!view.stores || view.stores.has(a.id)));
 // Countries shown: view.sel = a Set of countries, or null for all enabled ones.
@@ -67,7 +88,7 @@ function pruneTags() {
 const subOptions = () => (multi()
   ? [['countries', 'Countries'], ['tag', 'Tracking IDs'], ['cat', 'Categories'], ['product', 'Products'], ['dates', 'Dates']]
   : [['tag', 'Tracking IDs'], ['cat', 'Categories'], ['product', 'Products'], ['dates', 'Dates']]);
-const currentSub = () => (subOptions().some(([id]) => id === view.sub) ? view.sub : subOptions()[0][0]);
+const currentSub = () => (subOptions().some(([id]) => id === view.sub) && tabOk(view.sub) ? view.sub : subOptions().find(([id]) => tabOk(id))[0]);
 const wantedDims = () => {
   const s = currentSub();
   const d = s === 'countries' || s === 'dates' ? ['day', 'connections', 'rewards'] : ['day', 'connections', 'rewards', s];
@@ -343,7 +364,7 @@ function totalCardHTML(dayRows) {
     ? `<div class="stack">${SOURCES.map(([id]) => (t[id] > 0 ? `<span style="flex:${t[id]};background:var(--s-${id})"></span>` : '')).join('')}</div>`
     : '<div class="stack"></div>';
   const loc = byLocation(dayRows, byTag ? [] : collect('income'), byTag ? [] : collect('rewards'));
-  const rt = rewardsTier();
+  const rt = isProNow() ? rewardsTier() : null;
   const tiles = SOURCES.map(([id, label]) => {
     const has = t && t[id] > 0;
     const share = has && t.total > 0 ? `<span class="pc">${Math.round(t[id] / t.total * 100)}%</span>` : '';
@@ -597,6 +618,7 @@ function tagList() {
   return [...m.values()].sort((a, b) => e(b) - e(a) || b.clicks - a.clicks);
 }
 function tagsDropdownHTML() {
+  if (!isProNow()) return `<div class="dd"><button type="button" class="ddsum locked" data-lock="tags" title="Tag filters are included in Pro"><span class="muted small">TAGS</span> All tags ${LOCK}</button></div>`;
   const list = tagList();
   const label = !view.tags ? 'All tags' : view.tags.size === 0 ? 'No tags' : view.tags.size === 1 ? [...view.tags][0] : `${view.tags.size} tags`;
   const total = list.length;
@@ -636,7 +658,7 @@ function tableHTML(dayRows, cardRows) {
   const byTag = tagMode();
   const incomeAll = byTag ? [] : collect('income');
   const rewardsAll = byTag ? [] : collect('rewards');
-  const tabs = `<div class="subtabs">${subOptions().map(([id, l]) => `<button type="button" data-sub="${id}" class="${id === sub ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  const tabs = `<div class="subtabs">${subOptions().map(([id, l]) => (tabOk(id) ? `<button type="button" data-sub="${id}" class="${id === sub ? 'on' : ''}">${l}</button>` : `<button type="button" data-lock="tabs" class="locked" title="Included in Pro">${l} ${LOCK}</button>`)).join('')}</div>`;
   const empty = (msg) => `<p class="muted" style="padding:16px 0">${msg}</p>`;
   const wait = isLoading() ? 'Loading…' : 'No data for this period.';
   let body = '';
@@ -722,6 +744,7 @@ function countriesSettingsHTML() {
   const card = (c) => {
     const m = LOCALES[c], stores = accounts.filter((a) => (a.locales || []).includes(c)).length, t = tot[c];
     const stat = t ? `<b>${esc(amountText(t))}</b><small>${fmtNum(t.clicks)} clicks</small>` : '<small>no data yet</small>';
+    if (!isProNow() && SEPARATE_SITES[c]) return `<label class="ccard locked" data-lock="sites" title="Countries on a separate Associates site are included in Pro"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}</b><small>${m.cur} · separate Associates site</small></span><span class="cstat">${PRO_PILL}</span></label>`;
     return `<label class="ccard ${on(c) ? 'on' : ''}"><input type="checkbox" data-country="${c}" ${on(c) ? 'checked' : ''} aria-label="Show ${esc(m.label)}"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}</b><small>${m.cur}${stores ? ` · ${stores} store${stores > 1 ? 's' : ''}` : ''}</small></span><span class="cstat">${stat}</span><span class="switch" aria-hidden="true"></span></label>`;
   };
   return `<p class="muted small" style="margin:0 0 10px">Choose the countries the dashboard shows. Figures are for <b>${esc(periodLabel())}</b>.</p>
@@ -748,19 +771,69 @@ function storesSettingsHTML() {
   }).join('');
   return `<p class="muted small" style="margin:0 0 10px">Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.</p><div class="sgrid">${cards}</div>`;
 }
+// ---- plan card (Settings), upgrade pop-up, trial banner, header chip --------------------------------------------
+function planWords() {
+  const i = planInfo(license), d = (n) => `${n} day${n === 1 ? '' : 's'}`;
+  if (i.plan === 'pro' && i.source === 'trial') return { chip: `PRO TRIAL · ${i.daysLeft}d`, title: 'Pro trial', line: `Your free Pro trial has ${d(i.daysLeft)} left. No card was asked, nothing will be charged.` };
+  if (i.plan === 'pro' && i.source === 'demo') return { chip: 'PRO DEMO', title: 'Pro (demo)', line: 'This demo shows every Pro feature.' };
+  if (i.plan === 'pro') return { chip: 'PRO', title: i.source === 'comp' ? 'Pro (given)' : 'Pro', line: i.expiresAt || i.daysLeft != null ? `${i.cancelled ? 'Will not renew. Pro ends' : 'Pro is active until'} ${fmtDay(new Date(Date.now() + i.daysLeft * 86400000).toISOString().slice(0, 10), true)} (${d(i.daysLeft)}).` : 'Pro is active.' };
+  return { chip: 'FREE · Upgrade', title: 'Free', line: i.trialEnded ? 'Your Pro trial has ended, so you are on Free. You keep all your data; Pro features are locked.' : i.reason === 'refunded' ? 'That license was refunded, so you are on Free.' : i.reason === 'license_ended' ? 'Your license has ended, so you are on Free.' : 'You are on the Free plan.' };
+}
+function planCardHTML() {
+  const w = planWords(), i = planInfo(license), pro = i.plan === 'pro', paid = pro && (i.source === 'license' || i.source === 'comp');
+  const busy = view.planBusy;
+  const adds = ['Every period and custom date ranges', 'Tag filters with daily clicks per tag', 'Tracking IDs, categories and products', 'Creator Rewards tiers and enrollment alerts', 'Desktop alerts and all alert types', 'Other Associates sites', 'Report-gap protection', 'Updates every 5 minutes (Free: 30)'];
+  const trialBtn = !pro && trialAvailable() ? `<button type="button" id="plantrial" class="primary" ${busy ? 'disabled' : ''}>Start my ${PLAN_CFG.trialDays}-day free trial</button>` : '';
+  const keyRow = paid && license.key
+    ? `<p class="muted small" style="margin:8px 0 0">License key <b>${esc(license.key.slice(0, 9))}…</b> is active in this browser. <button type="button" class="linkbtn" id="planremove">Remove it from this browser</button></p>`
+    : `<div class="plankey"><input id="plankey" type="text" placeholder="Have a license key? Paste it here" autocomplete="off" spellcheck="false" aria-label="License key"><button type="button" id="plankeybtn" ${busy ? 'disabled' : ''}>Activate</button></div>`;
+  const email = !pro && trialAvailable() ? `<input id="planemail" type="email" placeholder="E-mail (optional): trial reminders and help if you lose access" autocomplete="email" aria-label="E-mail, optional">` : '';
+  return `<div class="plancard ${pro ? 'pro' : 'free'}">
+    <div class="planhead"><span class="planname">${esc(w.title)}</span><span class="muted">${esc(w.line)}</span></div>
+    ${pro ? '' : `<ul class="planlist">${adds.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>`}
+    ${email}
+    <div class="planbtns">${trialBtn}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${pro && paid ? '' : trialBtn ? '' : 'class="primary"'}>${pro ? 'Manage plan' : 'See plans'}</button><button type="button" id="planrefresh" ${busy ? 'disabled' : ''} title="Ask the license server again">Check again</button></div>
+    ${view.planMsg ? `<p class="small" style="color:${view.planMsg.err ? 'var(--bad)' : 'var(--text)'};margin:8px 0 0">${esc(view.planMsg.text)}</p>` : ''}
+    ${keyRow}
+    <label class="nt plantele"><input type="checkbox" id="shareusage" ${settings.shareUsage ? 'checked' : ''}><span>Share anonymous usage <span class="muted small">(off by default: the app version, plan and a few counters such as how many stores you have. Never earnings, store names or tags. <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>)</span></span></label>
+    <p class="muted small" style="margin:8px 0 0">${license.checkedAt ? `Plan checked ${esc(timeAgo(license.checkedAt))}.` : 'Plan not checked yet.'} ${license.lastError ? `Last attempt failed (${esc(planMessage(license.lastError))})` : ''}</p>
+  </div>`;
+}
+function upsellHTML() {
+  const [title, text] = UPSELL[view.upsell] || UPSELL.plan;
+  const busy = view.planBusy;
+  return `<div class="modalbg"><div class="modal" role="dialog" aria-modal="true" aria-label="Upgrade to Pro">
+    <button type="button" class="mclose" data-upclose="1" aria-label="Close">✕</button>
+    <span class="propill big">PRO</span><h2>${esc(title)}</h2><p>${esc(text)}</p>
+    ${view.planMsg ? `<p class="small" style="color:var(--bad)">${esc(view.planMsg.text)}</p>` : ''}
+    <div class="planbtns">${trialAvailable() ? `<button type="button" id="plantrial" class="primary" ${busy ? 'disabled' : ''}>Start my ${PLAN_CFG.trialDays}-day free trial</button>` : ''}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${trialAvailable() ? '' : 'class="primary"'}>See plans</button><button type="button" data-upclose="1">Not now</button></div>
+    <p class="muted small" style="margin:10px 0 0">${trialAvailable() ? `${PLAN_CFG.trialDays} days of Pro, no credit card required. You stay on Free afterwards unless you subscribe.` : 'Already have a key? Paste it in Settings → Plan.'}</p>
+  </div></div>`;
+}
+function planBannerHTML() {
+  const i = planInfo(license);
+  if (i.plan === 'pro' && i.source === 'trial' && i.daysLeft <= 3) return `<div class="banner plan" role="status"><span>Your Pro trial ends in ${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'}.</span><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">Keep Pro</button></div>`;
+  if (i.plan === 'free' && i.trialEnded && !settings.dismissTrialEnded) return `<div class="banner plan" role="status"><span>Your Pro trial has ended. You are on Free now and keep all your data.</span><span class="hbtns"><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">See plans</button><button type="button" id="dismisstrial" aria-label="Dismiss">✕</button></span></div>`;
+  return '';
+}
+
 function settingsHTML() {
   const on = (c) => settings.countries.includes(c);
   const accOn = (id) => !settings.accounts || settings.accounts.includes(id);
   const conf = notifyConf();
-  const toggles = NOTIFY_TYPES.map(([id, label, col]) => `<label class="nt"><input type="checkbox" data-notify="${id}" ${conf[id] ? 'checked' : ''}><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span></label>`).join('');
+  const toggles = NOTIFY_TYPES.map(([id, label, col]) => (isProNow() || FREE_NOTIFY.includes(id)
+    ? `<label class="nt"><input type="checkbox" data-notify="${id}" ${conf[id] ? 'checked' : ''}><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span></label>`
+    : `<label class="nt locked" data-lock="notify"><input type="checkbox" disabled><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span>${PRO_PILL}</label>`)).join('');
   return `<section class="set">
+    <h2>Plan</h2>
+    ${planCardHTML()}
     <h2>Countries to show</h2>
     ${countriesSettingsHTML()}
     <h2>Associate stores</h2>
     ${storesSettingsHTML()}
     <h2>Notifications</h2>
     <div class="nset"><div class="muted small">Notify me about</div><div class="ntoggles">${toggles}</div>
-      <label class="nt desk"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Also show desktop alerts <span class="muted small">(Chrome will ask for permission)</span></span></label>
+      ${isProNow() ? `<label class="nt desk"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Also show desktop alerts <span class="muted small">(Chrome will ask for permission)</span></span></label>` : `<label class="nt desk locked" data-lock="desktop"><input type="checkbox" disabled><span>Also show desktop alerts ${PRO_PILL}</span></label>`}
       ${view.notifMsg ? `<p class="small" style="color:var(--bad);margin:8px 0 0">${esc(view.notifMsg)}</p>` : ''}
       <p class="muted small" style="margin:8px 0 0">Checked every few minutes while Chrome is open. The first load never creates alerts.</p></div>
     <div class="foot"><button type="button" id="reset">Reset to defaults</button><button type="button" id="done" class="primary">Done</button></div>
@@ -778,7 +851,9 @@ const rangeText = (a, b, withYear = true) => (a === b ? fmtDay(a, withYear) : `$
 // Period list: same look as the Metrics menu.
 function periodDropdownHTML() {
   const label = view.period === 'custom' ? 'Custom range' : (PERIODS.find((p) => p.id === view.period) || {}).label || 'This month';
-  const row = (id, text, hint) => `<button type="button" class="mi pi ${view.period === id ? 'sel' : ''}" role="option" aria-selected="${view.period === id}" data-pick="${id}"><span class="chk">${view.period === id ? '✓' : ''}</span><span>${text}</span><em class="muted small">${hint}</em></button>`;
+  const row = (id, text, hint) => (id === 'custom' ? isProNow() : periodOk(id))
+    ? `<button type="button" class="mi pi ${view.period === id ? 'sel' : ''}" role="option" aria-selected="${view.period === id}" data-pick="${id}"><span class="chk">${view.period === id ? '✓' : ''}</span><span>${text}</span><em class="muted small">${hint}</em></button>`
+    : `<button type="button" class="mi pi locked" role="option" aria-disabled="true" data-lock="${id === 'custom' ? 'custom' : 'periods'}"><span class="chk"></span><span>${text}</span>${PRO_PILL}</button>`;
   const items = PERIODS.map((p) => { const [a, b] = rangeFor(p.id); return row(p.id, p.label, rangeText(a, b, false)); }).join('') + row('custom', 'Custom range…', '');
   const menu = view.perOpen ? `<div class="menu permenu" role="listbox" aria-label="Period">${items}</div>` : '';
   return `<div class="dd"><button type="button" class="ddsum" data-dd="period" aria-haspopup="listbox" aria-expanded="${view.perOpen}">${esc(label)} ${CHEVRON}</button>${menu}</div>`;
@@ -812,6 +887,7 @@ function calHTML() {
 }
 function rangeButtonHTML() {
   const [a, b] = curRange();
+  if (!isProNow()) return `<div class="dd"><button type="button" class="rngbtn locked" data-lock="custom" title="Custom date ranges are included in Pro">${ICON_CAL}<span>${esc(rangeText(a, b))}</span>${LOCK}</button></div>`;
   return `<div class="dd"><button type="button" class="rngbtn" data-dd="cal" aria-haspopup="dialog" aria-expanded="${view.calOpen}" title="Click to choose dates">${ICON_CAL}<span>${esc(rangeText(a, b))}</span></button>${view.calOpen ? calHTML() : ''}</div>`;
 }
 
@@ -836,7 +912,7 @@ function notifPanelHTML() {
     ? notif.items.slice(0, 50).map((i) => `<div class="nitem ${i.ts > view.notifFrom ? 'new' : ''}" ${i.url ? `data-open="${esc(i.url)}" style="cursor:pointer" title="Click to open"` : ''}><i class="sw" style="background:${typeColor(i.type)}"></i><div><div class="ntitle">${esc(i.title)}</div><div class="nbody muted small">${esc(i.body)}</div></div><span class="ntime muted small">${timeAgo(i.ts)}</span><button type="button" class="ndel" data-ndel="${esc(i.id)}" aria-label="Delete this notification" title="Delete">✕</button></div>`).join('')
     : '<p class="muted nempty">No notifications yet.<br>New orders, commissions, bonuses and Creator Rewards will show up here.</p>';
   return `<div class="npanel" role="dialog" aria-label="Notifications">
-    <div class="nhead"><strong>Notifications</strong><label class="nt deskchk" title="Also show a Windows / Mac desktop pop-up for new alerts (Chrome will ask for permission)"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Desktop alerts</span></label><span><button type="button" class="linkbtn" id="nclear" ${notif.items.length ? '' : 'disabled'}>Clear all</button></span></div>
+    <div class="nhead"><strong>Notifications</strong>${isProNow() ? `<label class="nt deskchk" title="Also show a Windows / Mac desktop pop-up for new alerts (Chrome will ask for permission)"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Desktop alerts</span></label>` : `<label class="nt deskchk locked" data-lock="desktop" title="Desktop alerts are included in Pro"><input type="checkbox" disabled><span>Desktop alerts ${PRO_PILL}</span></label>`}<span><button type="button" class="linkbtn" id="nclear" ${notif.items.length ? '' : 'disabled'}>Clear all</button></span></div>
     ${view.notifMsg ? `<p class="small" style="color:var(--bad);margin:0;padding:6px 14px">${esc(view.notifMsg)}</p>` : ''}
     <div class="nlist">${list}</div>
     <div class="nfoot"><button type="button" class="linkbtn" id="nsettings">Notifications Settings</button></div>
@@ -880,7 +956,7 @@ function mainHTML() {
   const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div></div>`;
   const siteErr = Object.entries(status.siteErrors || {}).filter(([loc]) => selLocales().includes(loc))
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
-  const err = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
+  const err = planBannerHTML() + siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
   if (loadingOnly) return nav + err + '<section class="panel state"><p class="muted">Loading your Amazon Associates data…</p></section>';
   const cardRows = tagAgg() || dayRows;
   return kpiHTML(cardRows) + nav + heldBannerHTML(dayRows) + err + chartHTML(cRows) + tableHTML(dayRows, cardRows);
@@ -922,6 +998,8 @@ function render() {
     : status.updatedAt ? `Updated ${new Date(status.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
   const stamps = amazonStamps();
   $('#status').title = 'Checked automatically; only data that is due is re-downloaded.' + (stamps.length ? '\nAmazon data last updated: ' + stamps.join(' · ') : '');
+  const chip = $('#planchip'); if (chip) { const w = planWords(); chip.textContent = w.chip; chip.className = 'planchip ' + (isProNow() ? 'pro' : 'free'); chip.title = w.line; }
+  const up = $('#upsell'); if (up) up.innerHTML = view.upsell ? upsellHTML() : '';
   const th = $('#theme'); if (th) { th.innerHTML = isDark() ? ICON_SUN : ICON_MOON; th.title = isDark() ? 'Switch to light mode' : 'Switch to dark mode'; }
   const gear = $('#gear');
   gear.innerHTML = view.showSettings ? ICON_BACK : ICON_GEAR;
@@ -977,10 +1055,32 @@ async function saveSettings(patch, reload = true) {
   if (reload) requestLoad();
 }
 
+// trial / activate / deactivate / check again: the background worker talks to the license server
+async function planAction(kind) {
+  if (view.planBusy) return;
+  const msg = { type: 'license', action: kind };
+  if (kind === 'trial') { const em = $('#planemail'); if (em && em.value.trim()) msg.email = em.value.trim(); }
+  if (kind === 'activate') { const k = $('#plankey'); msg.key = k ? k.value.trim() : ''; if (!msg.key) { view.planMsg = { err: true, text: 'Paste your license key first.' }; render(); return; } }
+  view.planBusy = true; view.planMsg = { text: kind === 'refresh' ? 'Checking…' : 'Working…' }; render();
+  let r; try { r = await chrome.runtime.sendMessage(msg); } catch (_) { r = { ok: false, error: 'network' }; }
+  view.planBusy = false;
+  if (r && r.ok) {
+    view.planMsg = { text: kind === 'trial' ? `Your ${PLAN_CFG.trialDays}-day Pro trial has started. Enjoy!` : kind === 'activate' ? 'License activated. Thank you!' : kind === 'deactivate' ? 'Removed from this browser.' : 'Plan is up to date.' };
+    if (kind === 'trial' || kind === 'activate') view.upsell = null;
+    const st = await chrome.storage.local.get('license'); license = st.license || license; setAccounts(rawAccounts); clampView(); requestLoad(true);
+  } else view.planMsg = { err: true, text: planMessage(r && r.error) };
+  render();
+}
+
 document.addEventListener('click', async (e) => {
   const t = e.target;
   const q = (s) => t.closest(s);
   if (anyPopOpen() && !q('.dd, .npanel, #bell')) { closePops(); render(); }
+  if (t.classList && t.classList.contains('modalbg') || q('[data-upclose]')) { view.upsell = null; view.planMsg = null; render(); return; }
+  if (q('[data-lock]')) { e.preventDefault(); const k = q('[data-lock]').dataset.lock; openUpsell(k === 'periods' ? 'periods' : k); return; }
+  if (q('#planchip')) { closePops(); view.upsell = null; view.showSettings = true; render(); return; }
+  if (q('#plantrial') || q('#plankeybtn') || q('#planremove') || q('#planrefresh')) { planAction(q('#plantrial') ? 'trial' : q('#plankeybtn') ? 'activate' : q('#planremove') ? 'deactivate' : 'refresh'); return; }
+  if (q('#dismisstrial')) { saveSettings({ dismissTrialEnded: true }, false); render(); return; }
   if (q('#bell')) {
     const open = !view.notifOpen;
     closePops(); view.notifOpen = open;
@@ -1018,7 +1118,7 @@ document.addEventListener('click', async (e) => {
   else if (q('[data-cq]')) {
     const k = q('[data-cq]').dataset.cq, all = Object.keys(LOCALES);
     const sold = new Set(accounts.flatMap((a) => a.locales || [])), tot = countryTotals();
-    let list = k === 'all' ? all : k === 'active' ? all.filter((c) => tot[c] && tot[c].clicks > 0) : all.filter((c) => sold.has(c));
+    let list = (k === 'all' ? all : k === 'active' ? all.filter((c) => tot[c] && tot[c].clicks > 0) : all.filter((c) => sold.has(c))).filter((c) => isProNow() || !SEPARATE_SITES[c]);
     if (!list.length) list = all.filter((c) => sold.has(c));
     if (!list.length) list = ['US'];
     await saveSettings({ countries: list }, false); render(); requestLoad();
@@ -1060,6 +1160,7 @@ document.addEventListener('click', async (e) => {
 
 document.addEventListener('change', async (e) => {
   const t = e.target;
+  if (t.id === 'shareusage') { await saveSettings({ shareUsage: t.checked }, false); render(); return; }
   if (t.dataset.notify) {
     const k = t.dataset.notify, conf = notifyConf();
     if (k === 'desktop' && t.checked) {
@@ -1126,13 +1227,14 @@ document.addEventListener('mouseover', (e) => {
 });
 document.addEventListener('mouseleave', hideBd);
 
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && anyPopOpen()) { closePops(); render(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (view.upsell) { view.upsell = null; render(); } else if (anyPopOpen()) { closePops(); render(); } } });
 
 chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
   if (ch.cache) { cache = ch.cache.newValue || {}; dirty = true; }
   if (ch.status) { status = ch.status.newValue || {}; dirty = true; }
-  if (ch.accounts) { accounts = ch.accounts.newValue || []; dirty = true; }
+  if (ch.license) { license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); dirty = true; }
+  if (ch.accounts) { setAccounts(ch.accounts.newValue); dirty = true; }
   if (ch.notif) {
     notif = ch.notif.newValue || { items: [], readAt: 0 };
     if (view.notifOpen && unreadCount()) { notif.readAt = Date.now(); chrome.storage.local.set({ notif }); } // already looking at the list
@@ -1144,15 +1246,18 @@ chrome.storage.onChanged.addListener((ch) => {
 (async () => {
   try {
     if (new URLSearchParams(location.search).has('full')) document.body.classList.add('full');
-    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState']);
+    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState', 'license']);
+    license = st.license || {};
     settings = { ...DEFAULTS, ...(st.settings || {}) };
-    cache = st.cache || {}; status = st.status || {}; accounts = st.accounts || []; notif = st.notif || { items: [], readAt: 0 };
+    cache = st.cache || {}; status = st.status || {}; setAccounts(st.accounts); notif = st.notif || { items: [], readAt: 0 };
     view.period = settings.period;
     view.sel = Array.isArray(settings.sel) && settings.sel.some((c) => enabledCountries().includes(c)) ? new Set(settings.sel) : (enabledCountries().includes(settings.tab) ? new Set([settings.tab]) : null);
     if (settings.theme) { applyTheme(settings.theme); try { localStorage.setItem('affilyatics-theme', settings.theme); } catch (_) {} }
     restoreView(st.viewState);
+    clampView();
     render();
     requestLoad();
+    chrome.runtime.sendMessage({ type: 'license', action: 'check' }).catch(() => {});   // the worker only asks the server when the answer is older than 12 hours
   } catch (e) {
     console.error('[affilyatics] startup failed', e);
     const m = document.querySelector('#main');

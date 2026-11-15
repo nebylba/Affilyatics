@@ -1,0 +1,75 @@
+// Free / Pro plans. Shared by the background worker (importScripts) and the dashboard (<script>).
+//
+// How it works: the license server (our backend) tells each installation which plan it has and signs that answer.
+// The background worker verifies the signature, stores the answer in chrome.storage.local ("license") and re-checks about
+// every 12 hours. Everything below only READS that stored answer, so a browser that is offline keeps its plan until the
+// answer's own "validUntil" date (a few days), then falls back to Free. Nothing about your Amazon data is ever sent.
+
+const PLAN_CFG = {
+  // Where the license server lives. Changing the domain later means releasing an extension update.
+  api: 'https://eblyn.com/Affilyatics/api/v1',
+  // Public half of the signing key (base64 SPKI). The matching private key lives only on the server (php _lib/make-keys.php).
+  publicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxceWprn33HVNKGLIxsVn/HMsuSwaGcnIINdYR2YDRZai/j00oxzirfY6fKuBq8TlTu+1P8zOGaj/f3OpCNMp90ONaIRBCgh6tRmT8jay/RErYebX4+j5zmnIjm3pcWvdLgWdnfV5PtsO/s9jD0GkuZ5CqIdBAgSNaMAY3cK4hGKe9ljX+avyIRE9clie3PbuavM2q6KlHnPSQn+/R8u+LmbD01o9q0ZOFW2kOOl9rM7zVO9aznx7s2/7mpZeYE9rJ6OFj1i9yqW7za6JIhZZnWD/nOSuK9MMbm0QnY3XHVEgEE7xUl4tP3ejzdR8261V9n/B8WNMZ4FVHXu2SFe8fQIDAQAB',
+  pricingUrl: 'https://eblyn.com/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
+  privacyUrl: 'https://eblyn.com/Affilyatics/privacy/',
+  trialDays: 14,
+  recheckHours: 12
+};
+
+const FREE_PERIODS = ['today', 'yesterday', 'month', 'lastMonth'];
+const FREE_NOTIFY = ['orders', 'signedout', 'dataissue'];
+const FEATURES = {
+  free: { periods: FREE_PERIODS, customRange: false, tags: false, tabs: ['countries', 'dates'], otherSites: false, rewardsTier: false, gapGuard: false, desktop: false, notify: FREE_NOTIFY, autoRefreshMin: 30 },
+  pro:  { periods: null, customRange: true, tags: true, tabs: null, otherSites: true, rewardsTier: true, gapGuard: true, desktop: true, notify: null, autoRefreshMin: 5 }
+};
+
+// What the stored answer allows right now (it may have run out since it was written).
+function planOf(lic, now = Date.now()) {
+  const e = lic && lic.ent;
+  if (!e || e.plan !== 'pro') return 'free';
+  const t = (s) => (s ? Date.parse(s) : Infinity);
+  if (!(now < t(e.validUntil))) return 'free';                       // not re-confirmed by the server for too long
+  if (e.source === 'trial' && !(now < t(e.trialEndsAt))) return 'free';
+  if (e.source !== 'trial' && e.expiresAt && !(now < t(e.expiresAt))) return 'free';
+  return 'pro';
+}
+const featuresFor = (lic, now) => FEATURES[planOf(lic, now)];
+
+// Everything the interface needs to describe the plan in words.
+function planInfo(lic, now = Date.now()) {
+  const plan = planOf(lic, now), e = (lic && lic.ent) || {};
+  const day = 86400000;
+  const out = { plan, source: plan === 'pro' ? e.source : null, daysLeft: null, cancelled: !!e.cancelled, reason: e.reason || null, trialEnded: false, cycle: e.cycle || null };
+  if (plan === 'pro' && e.source === 'trial') out.daysLeft = Math.max(0, Math.ceil((Date.parse(e.trialEndsAt) - now) / day));
+  if (plan === 'pro' && e.expiresAt) out.daysLeft = Math.max(0, Math.ceil((Date.parse(e.expiresAt) - now) / day));
+  if (plan === 'free' && (e.reason === 'trial_ended' || (e.source === 'trial' && e.trialEndsAt && Date.parse(e.trialEndsAt) <= now))) out.trialEnded = true;
+  return out;
+}
+
+const PLAN_MESSAGES = {
+  trial_used: 'This browser already used its free trial.',
+  trial_used_email: 'That e-mail address already used a free trial.',
+  invalid_key: 'That license key was not recognised. Check it and try again.',
+  license_ended: 'That license has ended.',
+  refunded: 'That license was refunded and no longer works.',
+  seats_full: 'That license is already used in the maximum number of browsers. Remove one from the license first (contact us).',
+  rate_limited: 'Too many tries. Please wait a little and try again.',
+  network: 'Could not reach the license server. Check your connection and try again.',
+  bad_signature: 'The answer from the license server could not be verified.',
+  server_error: 'The license server had a problem. Please try again later.'
+};
+const planMessage = (code) => PLAN_MESSAGES[code] || 'Something went wrong. Please try again.';
+
+// Which feature asked for an upgrade -> the sentence shown to the user.
+const UPSELL = {
+  periods: ['Every period', 'Free shows Today, Yesterday, This month and Last month. Pro adds the last 7 and 30 days, quarters, years and the previous ones.'],
+  custom: ['Custom date ranges', 'Pick any start and end date with the calendar. Included in Pro.'],
+  tags: ['Tag filters', 'Filter every card, total and chart by tracking ID, with the real daily clicks per tag. Included in Pro.'],
+  tabs: ['Tracking IDs, categories and products', 'See what earns: your tracking IDs, product categories and best products. Included in Pro.'],
+  sites: ['Other Associates sites', 'Add the accounts that live on a separate Associates site (for example a regional one). Free covers one Associates account with all its stores and countries.'],
+  rewards: ['Creator Rewards tiers and alerts', 'See your tier, how much is left to the next one, and get alerts when you tier up or must enroll. Included in Pro.'],
+  desktop: ['Desktop alerts', 'Get a pop-up on your desktop for every new order and alert. Included in Pro.'],
+  notify: ['More alert types', 'Free alerts you about new orders, sign-outs and Amazon report problems. Pro adds commissions, bonuses, Creator Rewards, Creator Connections and more.'],
+  refresh: ['5-minute updates', 'Free checks Amazon every 30 minutes. Pro checks every 5 minutes, so you see today as it happens.'],
+  plan: ['Affilyatics Pro', 'Every period, tag filters, Creator Rewards tiers, desktop alerts, report-gap protection and 5-minute updates.']
+};
