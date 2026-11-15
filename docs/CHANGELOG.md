@@ -4,6 +4,11 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Cascade Store -> Countries -> Tags**: each filter only offers what the previous one leaves. With a store chosen, the
+  Countries menu greys out the countries it does not sell in (they cannot be picked, and "All countries" means all of the
+  store's countries). When the tracking-ID data of the new scope has arrived, tags that no longer exist in it are dropped from
+  the Tags filter (and it goes back to all tags if none is left), so a Canada-only tag no longer stays selected, with no data,
+  after you switch to the UK.
 - **Daily clicks per tag in the chart**: with a tag filter on, the chart shows the real daily clicks of the selected tags
   (new dimension `tagday`, one `/reporting/summary` request per tag, store and country, using Amazon's own Tracking ID
   filter: the tag's numeric id + its name; the ids are read from the Tracking ID dropdown of the earnings page and kept in

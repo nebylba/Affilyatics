@@ -378,3 +378,7 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 .sflags .cchip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; background: var(--hover); }
 .sflags svg { width: 16px; height: 11px; border-radius: 2px; }
 .sstats { font-size: 14px; } .sstats b { font-weight: 600; } .sstats em { font-style: normal; color: var(--muted); font-size: 12px; margin-left: 4px; }
+
+.menu .mi.scoff { opacity: .4; }
+.menu .mi.scoff .lonly { cursor: not-allowed; }
+.menu .mi.scoff .lonly:hover span { text-decoration: none; }

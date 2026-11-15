@@ -49,6 +49,21 @@ const activeAccounts = () => accounts.filter((a) => (!settings.accounts || setti
 // Countries shown: view.sel = a Set of countries, or null for all enabled ones.
 const selLocales = () => { const all = enabledCountries(); const l = view.sel ? all.filter((c) => view.sel.has(c)) : all; return l.length ? l : all; };
 const multi = () => selLocales().length > 1;
+// Cascade Store -> Countries -> Tags: each filter only offers what the one before it leaves.
+// Countries the chosen store(s) sell in (all enabled countries when no store is chosen):
+const allowedLocales = () => { const sold = new Set(activeAccounts().flatMap((a) => a.locales || [])); return enabledCountries().filter((c) => sold.has(c)); };
+const allowedSel = () => { const a = allowedLocales(); return a.length && a.length < enabledCountries().length ? new Set(a) : null; };   // value for setSel: "all allowed"
+// Tags: when the data of the whole scope (chosen stores x chosen countries) has arrived, drop chosen tags that no longer exist in it
+// (for example the Canada tag after switching to the UK). If none is left, go back to all tags.
+function pruneTags() {
+  if (!view.tags || !view.tags.size) return;
+  for (const loc of selLocales()) for (const a of activeAccounts()) if ((a.locales || []).includes(loc) && !entry(a.id, loc, 'tag')) return;   // not loaded yet: decide later
+  const avail = new Set(); for (const loc of selLocales()) for (const a of activeAccounts()) { if (!(a.locales || []).includes(loc)) continue; const e = entry(a.id, loc, 'tag'); if (e) for (const r of e.rows) avail.add(r.name); }
+  if (!avail.size) return;
+  const keep = [...view.tags].filter((t) => avail.has(t));
+  if (keep.length === view.tags.size) return;
+  view.tags = keep.length && keep.length < avail.size ? new Set(keep) : null;
+}
 const subOptions = () => (multi()
   ? [['countries', 'Countries'], ['tag', 'Tracking IDs'], ['cat', 'Categories'], ['product', 'Products'], ['dates', 'Dates']]
   : [['tag', 'Tracking IDs'], ['cat', 'Categories'], ['product', 'Products'], ['dates', 'Dates']]);
@@ -495,8 +510,8 @@ function chartHTML(dayRows) {
 
 // Multi-select dropdown (checkboxes): which countries are shown (same look as the Metrics menu).
 function locsDropdownHTML() {
-  const all = enabledCountries(), sel = selLocales();
-  const items = all.map((c) => `<div class="mi"><input type="checkbox" data-loc="${c}" aria-label="Add or remove ${esc(LOCALES[c].label)}" ${sel.includes(c) ? 'checked' : ''}><button type="button" class="lonly" data-only="${c}" title="Show only ${esc(LOCALES[c].label)}">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></button><b class="muted">${LOCALES[c].cur}</b></div>`).join('');
+  const all = enabledCountries(), sel = selLocales(), ok = new Set(allowedLocales());
+  const items = all.map((c) => `<div class="mi${ok.has(c) ? '' : ' scoff'}"${ok.has(c) ? '' : ' title="The store you chose does not sell here"'}><input type="checkbox" data-loc="${c}" aria-label="Add or remove ${esc(LOCALES[c].label)}" ${sel.includes(c) ? 'checked' : ''} ${ok.has(c) ? '' : 'disabled'}><button type="button" class="lonly" data-only="${c}" ${ok.has(c) ? '' : 'disabled'} title="Show only ${esc(LOCALES[c].label)}">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></button><b class="muted">${LOCALES[c].cur}</b></div>`).join('');
   const menu = view.locOpen
     ? `<div class="menu menuright" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}</div>`
     : '';
@@ -897,6 +912,7 @@ function restoreView(v) {
 }
 
 function render() {
+  pruneTags();
   persistView();
   const loading = isLoading();
   const prog = $('#progress');
@@ -938,6 +954,7 @@ const renderSoon = () => { clearTimeout(timer); timer = setTimeout(render, 120);
 // Apply a new country selection (null = all), remember it, reload what is missing.
 function setSel(sel, keepOpen) {
   const all = enabledCountries();
+  if (sel && view.stores) { const ok = new Set(allowedLocales()); const f = [...sel].filter((c) => ok.has(c)); sel = f.length ? new Set(f) : allowedSel(); }   // cascade: only countries of the chosen store
   if (view.stores) {                                   // chosen stores must sell in the chosen countries, otherwise show all stores again
     const l = new Set(sel ? [...sel] : all);
     if (![...view.stores].some((id) => { const a = accounts.find((x) => x.id === id); return a && (a.locales || []).some((x) => l.has(x)); })) view.stores = null;
@@ -996,7 +1013,7 @@ document.addEventListener('click', async (e) => {
   else if (q('#done')) { view.showSettings = false; render(); requestLoad(); }
   else if (q('#reset')) { await saveSettings({ ...DEFAULTS }, false); view.sel = null; view.period = DEFAULTS.period; view.from = view.to = view.sub = view.group = null; view.cumulative = false; view.hideLast = false; view.metrics = new Set(['earnings', 'clicks', 'ordered']); render(); }
   else if (q('[data-sub]')) { view.sub = q('[data-sub]').dataset.sub; render(); requestLoad(); }
-  else if (q('[data-all]')) { setSel(null); }
+  else if (q('[data-all]')) { setSel(allowedSel()); }
   else if (q('[data-only]')) { setSel(new Set([q('[data-only]').dataset.only])); }
   else if (q('[data-cq]')) {
     const k = q('[data-cq]').dataset.cq, all = Object.keys(LOCALES);
@@ -1057,7 +1074,7 @@ document.addEventListener('change', async (e) => {
   } else if (t.id === 'cum') { view.cumulative = t.checked; render(); }
   else if (t.id === 'grp') { view.group = t.value; render(); }
   else if (t.dataset.lallbox) {
-    setSel(t.checked ? null : new Set(enabledCountries().slice(0, 1)), true);
+    setSel(t.checked ? allowedSel() : new Set(allowedLocales().slice(0, 1)), true);
   } else if (t.dataset.loc) {
     const cur = new Set(selLocales());
     if (t.checked) cur.add(t.dataset.loc); else if (cur.size > 1) cur.delete(t.dataset.loc);

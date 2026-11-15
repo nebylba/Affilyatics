@@ -81,6 +81,9 @@ Types: orders, commissions, bonuses, rewards, connections, signedout, dataissue.
   returns clicks per day for a tag but no daily sales, which only exist as period totals); the Dates tab keeps the
   unfiltered daily rows. `collect('tag', true)` is the unfiltered list for the menu. The `tag`
   dimension is requested when a tag filter is active, or the table / menu is open.
+- **Cascade**: `allowedLocales()` = the countries the chosen stores sell in; the Countries menu disables the others and `setSel`
+  keeps the selection inside them. `pruneTags()` (start of `render`) drops chosen tags that do not exist in the current scope once
+  every store x country of the scope has its `tag` entry loaded (all tags again if none is left).
 - Both are persisted in `viewState`.
 
 ## Creator Rewards enrollment alerts
