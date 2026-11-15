@@ -356,7 +356,7 @@ async function fetchRewards(acct, [s, e], fresh) {
     const start = ymd(new Date(y, mo - 1, 1)), end = ymd(new Date(y, mo, 0));
     const isCurrent = start <= today && today <= end;
     const covered = isCurrent ? s <= start && e >= today : end >= s && end <= e && start >= s;
-    if (covered) rows.push({ name: isCurrent ? today : end, rewards: m.bonus, shipped: m.shipped, month: m.month, status: m.status });
+    if (covered) rows.push({ name: isCurrent ? today : end, rewards: m.bonus, shipped: m.shipped, month: m.month, status: m.status, tiers: m.tiers || [] });
   }
   return { rows };
 }

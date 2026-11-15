@@ -34,7 +34,7 @@ button:hover { border-color: var(--accent); }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 select { border: 1px solid var(--line); background: var(--panel); padding: 8px 12px; border-radius: 5px; }
 
-.top { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 12px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: stretch; gap: 16px; padding: 12px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
 main { padding: 12px 16px 24px; }
 
 .tabs { display: flex; gap: 4px; }
@@ -127,8 +127,8 @@ input[type=date] { font: inherit; color: var(--text); border: 1px solid var(--li
 .stack { display: flex; gap: 2px; height: 6px; border-radius: 5px; overflow: hidden; background: var(--line); }
 
 /* Total-income card: fixed grid, every source always has its column, every cell has the same three lines */
-.headtotal { justify-self: stretch; min-width: 0; }
-.totalcard { display: flex; flex-direction: column; gap: 8px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: default; }
+.headtotal { justify-self: stretch; min-width: 0; display: flex; margin-bottom: 23px; }   /* top = top of the logo, bottom = bottom of the Store filter and Refresh button */
+.totalcard { flex: 1; justify-content: space-between; display: flex; flex-direction: column; gap: 8px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: default; }
 .trow2 { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: start; gap: 20px; }
 .thead { display: flex; flex-direction: column; min-width: 0; padding: 6px 10px; border-radius: 5px; border: 1px solid var(--s-earnings); background: color-mix(in srgb, var(--s-earnings) 16%, transparent); }
 .thead .l { color: var(--s-earnings); font-weight: 600; font-size: 13px; line-height: 1.3; }

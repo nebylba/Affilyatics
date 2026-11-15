@@ -297,6 +297,23 @@ function moneyInline(byCur, k) {
 // Left: the total in the main currency, other currencies on a single line below it.
 // Right: one fixed column per income source (always all of them, empty ones dimmed), same structure in each.
 // Amounts and shares are in the main currency; other currencies go on the small line (full list on hover).
+// Creator Rewards tier of the most recent month on screen (needs the tier table that background.js now keeps in each rewards row).
+function rewardsTier() {
+  const rows = collect('rewards').filter((r) => r.tiers && r.tiers.length).sort((a, b) => (a.month < b.month ? 1 : -1));
+  const r = rows[0]; if (!r) return null;
+  const tiers = r.tiers, n = tiers.length;
+  let idx = tiers.findIndex((t) => t.bonus === r.rewards);
+  if (idx < 0) idx = tiers.reduce((best, t, i) => (t.revenue <= r.shipped ? i : best), -1);
+  const next = tiers[idx + 1] || null, left = next ? Math.max(0, next.revenue - r.shipped) : 0;
+  const [y, mo] = r.month.split('-').map(Number);
+  const month = `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][mo - 1]} ${y}`;
+  const text = `Tier ${idx + 1}/${n} · ${next ? `${fmtMoney(left, 'USD', true)} to next` : 'top tier'}`;
+  const table = tiers.map((t, i) => `${i === idx ? '▶ ' : ''}${fmtMoney(t.revenue, 'USD')} shipped → ${fmtMoney(t.bonus, 'USD')}`).join('  ·  ');
+  const title = `${month}: ${idx >= 0 ? `tier ${idx + 1} of ${n} reached (${fmtMoney(r.rewards, 'USD')} bonus)` : `first tier not reached yet`}. Shipped so far ${fmtMoney(r.shipped, 'USD')}.` +
+    (next ? ` Next tier: ${fmtMoney(next.revenue, 'USD')} shipped for ${fmtMoney(next.bonus, 'USD')} (${fmtMoney(left, 'USD')} to go).` : ' You reached the top tier.') + `
+Tiers: ${table}`;
+  return { text, title };
+}
 function totalCardHTML(dayRows) {
   const byTag = tagMode();
   const { byCur } = sumByCurrency(dayRows, byTag ? [] : collect('income'), byTag ? [] : collect('rewards'));
@@ -310,10 +327,11 @@ function totalCardHTML(dayRows) {
     ? `<div class="stack">${SOURCES.map(([id]) => (t[id] > 0 ? `<span style="flex:${t[id]};background:var(--s-${id})"></span>` : '')).join('')}</div>`
     : '<div class="stack"></div>';
   const loc = byLocation(dayRows, byTag ? [] : collect('income'), byTag ? [] : collect('rewards'));
+  const rt = rewardsTier();
   const tiles = SOURCES.map(([id, label]) => {
     const has = t && t[id] > 0;
     const share = has && t.total > 0 ? `<span class="pc">${Math.round(t[id] / t.total * 100)}%</span>` : '';
-    return `<div class="tile${has ? '' : ' zero'}"${bdAttr(label, loc, bdMoney(id))}><div class="tl"><i style="background:var(--s-${id})"></i><span class="tn">${label}</span>${share}</div><b>${has ? amt(id) : '—'}</b>${sub(id)}</div>`;
+    return `<div class="tile${has ? '' : ' zero'}"${bdAttr(label, loc, bdMoney(id))}><div class="tl"><i style="background:var(--s-${id})"></i><span class="tn">${label}</span>${share}</div><b>${has ? amt(id) : '—'}</b>${id === 'rewards' && !byTag && rt ? `<div class="sub" title="${esc(rt.title)}">${esc(rt.text)}</div>` : sub(id)}</div>`;
   }).join('');
   const note = curs.length > 1 ? `Amounts and shares are in ${main}; other currencies are listed below each amount.` : '';
   return `<div class="totalcard">

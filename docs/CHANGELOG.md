@@ -4,6 +4,9 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
+- **Total income card taller**: its top lines up with the top of the logo and its bottom with the Store filter / Refresh button.
+- **Creator Rewards tier** in the Creator Rewards tile of the total card: "Tier 3/4 · $640 to next" (or "top tier"); the tooltip gives
+  the month, the next tier and the whole tier table. The rewards rows now carry `tiers` (background.js `fetchRewards`).
 - **Header polish**: logo 58 -> 66 px; the Store filter has the Refresh button's height (40 px), ends exactly where the logo
   ends (the logo sets the column width) and its bottom line matches Refresh; it shows "+2" (tooltip: 2 other stores); the "?"
   next to the Tags filter is bigger (24 px).
