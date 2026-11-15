@@ -822,22 +822,9 @@ async function purgeDemoNotifications() {
   const { notif } = await chrome.storage.local.get('notif');
   if (notif && (notif.items || []).some((i) => i.demo)) await chrome.storage.local.set({ notif: { ...notif, items: notif.items.filter((i) => !i.demo) } });
 }
-// TEMPORARY test alert for the "Creator Rewards enrollment needed" notification: one sample item (and a desktop pop-up when
-// desktop alerts are on) appears on every install / reload. The owner will say when to remove it: set SEED_ENROLL_TEST to false.
-const SEED_ENROLL_TEST = true;
-async function seedEnrollTest() {
-  const { notif, settings } = await chrome.storage.local.get(['notif', 'settings']);
-  const now = Date.now(), url = `${BASE}/creatorRewards?store_id=bestgpu0f-20`;
-  const item = { id: `demo-enroll-${now}`, ts: now, type: 'enroll', title: 'Creator Rewards: enrollment needed · December 2026',
-    body: 'Sample alert · A new Creator Rewards offer is coming (December 1, 2026 - December 31, 2026). Click to open the page and enroll store bestgpu0f-20.', demo: true, url };
-  const items = [item, ...((notif && notif.items) || []).filter((i) => !i.demo)].slice(0, 200);
-  await chrome.storage.local.set({ notif: { items, readAt: Math.min((notif && notif.readAt) || 0, now - 60000) } });
-  const conf = { ...NOTIFY_DEFAULT, ...((settings && settings.notify) || {}) };
-  if (conf.desktop && await canDesktop()) chrome.notifications.create(`open:${encodeURIComponent(url)}:${item.id}`, { type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'), title: item.title, message: item.body, priority: 1 });
-}
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES, delayInMinutes: 0.1 });
-  purgeDemoNotifications().then(() => (SEED_ENROLL_TEST ? seedEnrollTest() : null)).catch((e) => console.warn('[affilyatics] test alert failed:', e.message));
+  purgeDemoNotifications().catch(() => {});                     // removes any left-over sample alerts
 });
 chrome.runtime.onStartup.addListener(() => { chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES }); prewarm(); });
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'refresh') prewarm(); });

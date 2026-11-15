@@ -4,9 +4,8 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-15
 
-- **TEMPORARY test alert** for the Creator Rewards enrollment notification: one sample item (clickable to the rewards page,
-  plus a desktop pop-up if desktop alerts are on) is added on every install / reload. Remove by setting
-  `SEED_ENROLL_TEST = false` in background.js when the owner says so.
+- The temporary test alert for the Creator Rewards enrollment notification was added and then removed at the owner's request
+  (reloading no longer adds any sample alert; left-over samples are purged).
 - **Desktop alerts checkbox** in the notifications popup header (same setting as Settings > Notifications).
 - **Settings**: Associate stores are now cards (main badge, account and host, countries, earned and clicks for the period,
   Amazon "last updated", not-signed-in badge). Countries to show are cards with switches, grouped into where your stores
