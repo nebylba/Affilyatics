@@ -65,3 +65,10 @@ stubbed `chrome.storage`. UI changes cannot be seen without loading the extensio
 - Layout must not jump: fixed-height cells, always render all columns, reserve empty lines.
 - Estimates must be marked (`~`) and carry a "?" tooltip saying they are not Amazon figures.
 - Do not call Amazon endpoints directly from outside the extension: they need the page's auth headers (401 otherwise).
+
+## Plans (Free / Pro)
+
+`plan.js` (shared) + `license.js` (worker) + gating in `background.js` / `popup.js`. Read `docs/PLANS_AND_LICENSING.md` first.
+Locked UI carries `data-lock="<feature>"`; whatever you add that is Pro-only must be gated BOTH in the popup and in `load()`.
+The backend lives in the website repo (`eblyn.com/Affilyatics/_lib`, `api`, `admin`). Release zip: `python tools/package.py`.
+Demo for the website: `node tools/build-demo.js <site>/demo` (also copies `plan.js`).
