@@ -1113,7 +1113,7 @@ function render() {
     : status.updatedAt ? `Updated ${new Date(status.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
   const stamps = amazonStamps();
   $('#status').title = 'Checked automatically; only data that is due is re-downloaded.' + (stamps.length ? '\nAmazon data last updated: ' + stamps.join(' · ') : '');
-  const upg = $('#upgradebtn'); if (upg) upg.hidden = isProNow() || !signedIn();          // Free plan only: a button next to the close X
+  const upg = $('#upgradebtn'); if (upg) { upg.hidden = isProNow() || !signedIn(); upg.textContent = trialAvailable() ? 'Upgrade to Pro for free' : 'Upgrade to Pro'; }          // Free plan only: a button next to the close X
   const chip = $('#planchip'); if (chip) { const w = planWords(); chip.textContent = w.chip; chip.className = 'planchip ' + (isProNow() ? 'pro' : 'free'); chip.title = w.line; chip.hidden = !signedIn(); }
   const up = $('#upsell'); if (up) up.innerHTML = view.upsell ? upsellHTML() : '';
   const th = $('#theme'); if (th) { th.innerHTML = isDark() ? ICON_SUN : ICON_MOON; th.title = isDark() ? 'Switch to light mode' : 'Switch to dark mode'; }

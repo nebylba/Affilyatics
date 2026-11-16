@@ -480,7 +480,5 @@ body.gate-mode #main { flex: 1; }
 .upgradebtn { height: 40px; padding: 0 14px; border-radius: 6px; background: var(--accent); border-color: var(--accent); color: var(--navy-on, #14244a); font-weight: 700; letter-spacing: .03em; cursor: pointer; }
 .upgradebtn:hover { filter: brightness(.95); border-color: var(--accent); }
 .upgradebtn[hidden] { display: none; }
-.refreshbtn { background: var(--good); border-color: var(--good); color: #fff; }
-.refreshbtn:hover { filter: brightness(.95); border-color: var(--good); }
-:root[data-theme="dark"] .refreshbtn { color: #062515; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .refreshbtn { color: #062515; } }
+.refreshbtn { background: #16a34a; border-color: #16a34a; color: #fff; }
+.refreshbtn:hover { filter: none; background: #15803d; border-color: #15803d; }
