@@ -1,6 +1,6 @@
 // Builds the website's LIVE DEMO from the REAL extension files, so the demo always is the real dashboard.
 // Usage: node tools/build-demo.js "C:/Perso/EBLYN/Projects/eblyn.com/Affilyatics/demo"
-// It writes <demo>/app/* (popup.js, shared.js, plan.js, theme.js, popup.css) and <demo>/index.html (from popup.html).
+// It writes <demo>/app/* (popup.js, shared.js, plan.js, theme.js, popup.css) and <demo>/app.html (from popup.html).
 // demo.js (fake chrome + demo data), demo.css and demo-ui.js live in the website folder and are not touched.
 const fs = require('fs'), path = require('path');
 const demo = process.argv[2];
@@ -22,7 +22,7 @@ sub('<script src="theme.js"></script>', '<script>try { var s = localStorage.getI
 sub('<link rel="stylesheet" href="popup.css">', '<link rel="stylesheet" href="app/popup.css">\n<link rel="stylesheet" href="demo.css">');
 sub('src="icons/logo-light.svg"', 'src="../assets/logo-light.svg"');
 sub('src="icons/logo-dark.svg"', 'src="../assets/logo-dark.svg"');
-sub('<body>', '<body>\n<div class="demobar"><b>Live demo</b> with demo data. Everything works: try the Store, Countries and Tags filters, the period, the tabs, the bell and Settings. <a href="#" class="demotour" onclick="window.startAffilyaticsTour &amp;&amp; startAffilyaticsTour(); return false">Take the tour</a> <span class="demoplan">View as <a href="?plan=free&full=1">Free</a> · <a href="?full=1">Pro</a></span> <a class="demobtn" href="../#plans">Try it free for 14 days</a></div>');
+sub('<body>', '<body>\n<div class="demobar"><b>Live demo</b> with demo data. Everything works: try the Store, Countries and Tags filters, the period, the tabs, the bell and Settings. <a href="#" class="demotour" onclick="window.startAffilyaticsTour &amp;&amp; startAffilyaticsTour(); return false">Take the tour</a> <span class="demoplan">View as <a href="?plan=free&full=1">Free</a> · <a href="?full=1">Pro</a></span> <a class="demobtn" href="../#plans" target="_top">Try it free for 14 days</a></div>');
 sub('<script src="shared.js"></script>\n<script src="plan.js"></script>\n<script src="popup.js"></script>', '<script src="demo.js"></script>\n<script src="app/shared.js"></script>\n<script src="app/plan.js"></script>\n<script src="app/popup.js"></script>\n<script src="demo-ui.js"></script>');
-fs.writeFileSync(path.join(demo, 'index.html'), h);
+fs.writeFileSync(path.join(demo, 'app.html'), h);      // demo/index.html is the website page around it (header, footer, frame): hand-written, never overwritten
 console.log('Demo built in ' + demo);

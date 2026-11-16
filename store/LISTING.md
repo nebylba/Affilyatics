@@ -37,6 +37,7 @@ AND MUCH MORE
 - Light and dark mode, filters remembered between visits
 
 FREE AND PRO
+Pro is $4.99 per month, $54.89 per year (one month free), or $99 once (Lifetime).
 Free: one Associates account with all its stores and countries, total income, chart, countries and dates tables, today,
 yesterday, this month and last month, alerts for new orders / sign-outs / report problems, updates every 30 minutes.
 Pro: every period and custom date ranges, tag filters, tracking ID / category / product tables, Creator Rewards tiers and
@@ -61,6 +62,8 @@ Show the user's own Amazon Associates earnings and reports in one dashboard, wit
 - **alarms:** refreshes the figures (every 5 minutes on Pro, 30 on Free) and re-checks the plan about every 12 hours while the browser is open.
 - **declarativeNetRequest:** adds the headers that Amazon's own report pages expect when the extension reads the user's reports.
 - **notifications (optional, asked only when the user turns on desktop alerts):** desktop pop-ups for new orders and alerts.
+- **identity:** opens Chrome's built-in Google sign-in window (`launchWebAuthFlow`) so people can sign in with Google without leaving the extension.
+- **Host permission** `https://identitytoolkit.googleapis.com/*`: Firebase Authentication (e-mail + password sign-in, verification and password-reset e-mails) from the extension's own sign-in form.
 - **Host permissions** `https://affiliate-program.amazon.com/*`, `https://associates.amazon.ca/*`: read the user's own Associates reports with their signed-in session. No other site is accessed.
 - **Remote code:** none. All code is in the package.
 
