@@ -466,3 +466,7 @@ body.gate-mode #main { flex: 1; }
 .banner.plan.good { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--panel)); color: var(--text); }
 .banner .bclose { flex: none; border: 0; background: none; color: inherit; font-size: 16px; line-height: 1; padding: 2px 8px; cursor: pointer; opacity: .75; }
 .banner .bclose:hover { opacity: 1; }
+
+/* stores found in the account but not part of the Free plan: listed, grayed, with a PRO pill */
+.storemenu .mi.locked { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; opacity: .55; cursor: pointer; }
+.storemenu .mi.locked:hover { opacity: .85; }
