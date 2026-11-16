@@ -36,7 +36,7 @@ The client rejects an answer whose signature fails or whose `installId` is not i
 ## Free vs Pro (single source: `FEATURES` in plan.js, `FREE_PERIODS`, `FREE_NOTIFY`)
 | | Free | Pro |
 |---|---|---|
-| Associates sites | main site (all stores and countries) | + separate regional sites (Canada) |
+| Stores | 1 store: the main one (first Amazon lists on the main Associates site), all its countries | unlimited, incl. separate regional sites (Canada) |
 | Periods | all + custom range | all + custom range |
 | Tags filter, Tracking IDs / Categories / Products tabs | locked | yes |
 | Creator Rewards tier line + enrollment alerts | locked | yes |

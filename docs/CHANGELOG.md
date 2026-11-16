@@ -89,3 +89,4 @@ Newest first. Dates are when the change was made.
 - Sign-in inside the popup (Firebase REST for e-mail; Google through chrome.identity). Website: demo page shell, prices Pro $4.99/mo, $54.89/yr, Lifetime $99.
 - The plan is re-checked on open, every 20 s while the window is open (5 s after See plans), and every 15 min in the background; Pro unlocks the screen by itself.
 - Every period and the custom range are now FREE (Free vs Pro: tags, tabs, Creator Rewards, alerts, other sites, gap guard, 5-min refresh).
+- Free = 1 store (the main store, the first Amazon lists); Pro and Lifetime = unlimited stores.

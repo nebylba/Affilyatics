@@ -23,7 +23,8 @@ const view = { gmode: 'in', draft: { email: '', password: '' }, verify: null, ga
 const isProNow = () => planOf(license) === 'pro';
 const signedIn = () => accountOk(license);
 const isSepAccount = (a) => Object.values(SEPARATE_SITES).includes(a.base);
-const setAccounts = (raw) => { rawAccounts = raw || []; accounts = isProNow() ? rawAccounts : rawAccounts.filter((a) => !isSepAccount(a)); };
+const setAccounts = (raw) => { rawAccounts = raw || []; accounts = isProNow() ? rawAccounts : rawAccounts.filter((a) => !isSepAccount(a)).slice(0, FEATURES.free.stores); };   // Free: one store (the main one)
+const hiddenStores = () => rawAccounts.filter((a) => !accounts.includes(a));
 const periodOk = (id) => isProNow() || FREE_PERIODS.includes(id);
 const tabOk = (id) => isProNow() || FEATURES.free.tabs.includes(id);
 const trialAvailable = () => !(license.ent && (license.ent.trialEndsAt || license.ent.reason === 'trial_ended'));
@@ -608,7 +609,7 @@ function storeFilterHTML() {
   const sel = new Set(view.stores ? [...view.stores] : accounts.map((a) => a.id));
   const rows = accounts.map((a) => `<div class="mi"><input type="checkbox" data-storebox="${esc(a.id)}" aria-label="Add or remove ${esc(a.id)}" ${sel.has(a.id) ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="${esc(a.id)}" title="Show only ${esc(a.id)}"><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span></button><b class="muted small">${esc(amountText(tot[a.id]))}</b></div>`).join('');
   const menu = view.storeOpen
-    ? `<div class="menu storemenu" role="group" aria-label="Stores"><div class="mi allrow"><input type="checkbox" data-storeall="1" aria-label="Select or clear all stores" ${sel.size === accounts.length ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="" title="Show all stores"><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button><b class="muted">${sel.size}/${accounts.length}</b></div><div class="msep"></div>${rows}<p class="muted small" style="margin:8px 8px 4px">Click a name to see only that store · tick boxes to combine.</p></div>`
+    ? `<div class="menu storemenu" role="group" aria-label="Stores"><div class="mi allrow"><input type="checkbox" data-storeall="1" aria-label="Select or clear all stores" ${sel.size === accounts.length ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="" title="Show all stores"><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button><b class="muted">${sel.size}/${accounts.length}</b></div><div class="msep"></div>${rows}${hiddenStores().length ? `<div class="mi locked" data-lock="stores" title="More stores are included in Pro"><span class="scrow"><b>+${hiddenStores().length} more store${hiddenStores().length > 1 ? 's' : ''}</b><small>Included in Pro and Lifetime</small></span>${PRO_PILL}</div>` : ''}<p class="muted small" style="margin:8px 8px 4px">Click a name to see only that store · tick boxes to combine.</p></div>`
     : '';
   return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sline"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more" title="${others} other store${others > 1 ? 's' : ''}">+${others}</span>` : ''}</span>${CHEVRON}</button>${menu}</div>`;
 }
@@ -770,7 +771,10 @@ function storesSettingsHTML() {
         <span class="sstats">${t ? `<b>${esc(amountText(t))}</b> earned · ${fmtNum(t.clicks)} clicks <em>${esc(per)}</em>` : '<span class="muted">no figures loaded yet</span>'}</span>
         ${lu ? `<span class="small muted">Amazon data updated ${esc(lu)}</span>` : ''}</span></label>`;
   }).join('');
-  return `<p class="muted small" style="margin:0 0 10px">Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.</p><div class="sgrid">${cards}</div>`;
+  const hid = hiddenStores();
+  const locked = hid.map((a) => { let host = ''; try { host = new URL(a.base).host; } catch (_) {} return `<label class="scard off locked" data-lock="stores" title="More stores are included in Pro"><span class="sbody"><span class="srow1"><b>${esc(a.id)}</b>${PRO_PILL}</span><span class="small muted">${esc(accountLabel(a))}${host ? ` · ${esc(host)}` : ''}</span><span class="sflags">${(a.locales || []).map((l) => `<span class="cchip">${flagSVG(l)}${esc(LOCALES[l].short)}</span>`).join('')}</span></span></label>`; }).join('');
+  const note = isProNow() ? 'Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.' : `The Free plan includes <b>1 store</b>: your main store, the first one Amazon lists.${hid.length ? ` Your other ${hid.length} store${hid.length > 1 ? 's are' : ' is'} included in Pro and Lifetime.` : ''}`;
+  return `<p class="muted small" style="margin:0 0 10px">${note}</p><div class="sgrid">${cards}${locked}</div>`;
 }
 // ---- sign-in gate: an account (e-mail or Google) is required, Free included ---------------------------------------------
 // The "Sign in" button makes the worker open our sign-in web page; this screen then polls (every 2 s) until the page confirms.
@@ -834,7 +838,7 @@ function ensureAuthPolling() {
 // ---- first-run tour: a short guided walk over the real controls (Settings -> "Take the tour" runs it again) --------------
 // view.tour = index of the step on screen, or null. Steps whose target is not on screen are skipped.
 const TOUR = [
-  { sel: '#storefilter', title: 'Your stores', text: () => 'Every store of your Associates account. Click the menu to see one store, or tick several to combine them. The countries follow your choice.' },
+  { sel: '#storefilter', title: 'Your stores', text: () => (isProNow() ? 'Every store of your Associates account. Click the menu to see one store, or tick several to combine them. The countries follow your choice.' : 'Your store, with all its countries. Free includes one store; Pro and Lifetime add all your other stores, with a menu to switch or combine them.') },
   { sel: '.toolbar .when', title: 'Dates', text: () => 'Today, the last 7 or 30 days, quarters, years, or any dates you choose with the calendar.' },
   { sel: '.locwrap', title: 'Countries and tags', text: () => (isProNow() ? 'Choose the countries to show. The Tags filter narrows everything to the tracking IDs you pick. Each filter only offers what the one before it leaves.' : 'Choose the countries to show. The Tags filter (Pro) narrows everything to one tracking ID, with the real daily clicks per tag.') },
   { sel: '.brow.r2', title: 'Alerts and settings', text: () => (isProNow() ? 'The bell lists new orders, commissions, bonuses and Creator Rewards tiers (and sends desktop pop-ups if you turn them on). Settings: countries, stores, alerts, your plan, and this tour again.' : 'The bell lists new orders, sign-outs and Amazon report problems (Pro adds every alert type and desktop pop-ups). Settings: countries, stores, alerts, your plan, and this tour again. Locked items show a lock: try them all with a 14-day Pro trial.') }

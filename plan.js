@@ -28,8 +28,8 @@ const accountOk = (lic, now = Date.now()) => !!(lic && lic.account && lic.accoun
 const FREE_PERIODS = typeof PERIODS !== 'undefined' ? PERIODS.map((p) => p.id) : ['today', 'yesterday', 'last7', 'last30', 'month', 'lastMonth', 'quarter', 'lastQuarter', 'year', 'lastYear'];   // every period is free; custom ranges too
 const FREE_NOTIFY = ['orders', 'signedout', 'dataissue'];
 const FEATURES = {
-  free: { periods: FREE_PERIODS, customRange: true, tags: false, tabs: ['countries', 'dates'], otherSites: false, rewardsTier: false, gapGuard: false, desktop: false, notify: FREE_NOTIFY, autoRefreshMin: 30 },
-  pro:  { periods: null, customRange: true, tags: true, tabs: null, otherSites: true, rewardsTier: true, gapGuard: true, desktop: true, notify: null, autoRefreshMin: 5 }
+  free: { stores: 1, periods: FREE_PERIODS, customRange: true, tags: false, tabs: ['countries', 'dates'], otherSites: false, rewardsTier: false, gapGuard: false, desktop: false, notify: FREE_NOTIFY, autoRefreshMin: 30 },
+  pro:  { stores: null, periods: null, customRange: true, tags: true, tabs: null, otherSites: true, rewardsTier: true, gapGuard: true, desktop: true, notify: null, autoRefreshMin: 5 }
 };
 
 // What the stored answer allows right now (it may have run out since it was written).
@@ -94,6 +94,7 @@ const UPSELL = {
   custom: ['Custom date ranges', 'Pick any start and end date with the calendar. Included in Pro.'],
   tags: ['Tag filters', 'Filter every card, total and chart by tracking ID, with the real daily clicks per tag. Included in Pro.'],
   tabs: ['Tracking IDs, categories and products', 'See what earns: your tracking IDs, product categories and best products. Included in Pro.'],
+  stores: ['Unlimited stores', 'Free includes one store: your main store, the first one Amazon lists. Pro and Lifetime include all your stores, with a menu to switch between them or combine them.'],
   sites: ['Other Associates sites', 'Add the accounts that live on a separate Associates site (for example a regional one). Free covers one Associates account with all its stores and countries.'],
   rewards: ['Creator Rewards tiers and alerts', 'See your tier, how much is left to the next one, and get alerts when you tier up or must enroll. Included in Pro.'],
   desktop: ['Desktop alerts', 'Get a pop-up on your desktop for every new order and alert. Included in Pro.'],
