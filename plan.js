@@ -13,7 +13,7 @@ const PLAN_CFG = {
   // Public web API key of the Firebase project (not a secret). Used for the sign-in forms inside the extension.
   firebase: { apiKey: 'AIzaSyBAkaKazUQKafNcPhzwua22S1ePH3UHe90' },
   // OAuth "Web client" id used for Google sign-in inside the extension (Google Cloud -> Credentials; see docs/Firebase-setup.md). Empty = Google button explains it is not set up.
-  googleClientId: '',
+  googleClientId: '554282385001-me9ld2pv5ebpullbei6oe2rndbo2gol5.apps.googleusercontent.com',
   signinUrl: 'http://eblyn.local/Affilyatics/signin/',      // the page where people sign in (Firebase: e-mail or Google)
   pricingUrl: 'http://eblyn.local/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
   privacyUrl: 'http://eblyn.local/Affilyatics/privacy/',
