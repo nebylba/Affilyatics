@@ -85,3 +85,4 @@ Newest first. Dates are when the change was made.
 - v5.0.0: Free / Pro plans (14-day no-card trial, license keys, signed server answers), plan card in Settings, upgrade pop-up, Pro gating in popup and worker, `tools/package.py`, store listing in `store/`.
 - v5.0.0: first-run guided tour (4 steps over the real controls, `TOUR` in popup.js, `settings.tourDone`; Settings -> Take the tour runs it again; the website demo offers it from the orange bar).
 - v5.0.0: mandatory account (Firebase sign-in on a hosted page, e-mail or Google) for every plan; sign-in gate screen; account token; licenses belong to accounts; trials per account.
+- tools/set-env.py local|prod switches the extension between your local server and production; package.py refuses a local build; local test sign-in on the server (dev_login, localhost only).

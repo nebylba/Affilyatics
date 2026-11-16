@@ -8,7 +8,9 @@ if (!demo) { console.error('Usage: node tools/build-demo.js <demo folder>'); pro
 const root = path.join(__dirname, '..');
 const app = path.join(demo, 'app');
 fs.mkdirSync(app, { recursive: true });
-for (const f of ['popup.js', 'shared.js', 'plan.js', 'theme.js']) fs.copyFileSync(path.join(root, f), path.join(app, f));
+for (const f of ['popup.js', 'shared.js', 'theme.js']) fs.copyFileSync(path.join(root, f), path.join(app, f));
+// the website demo always points at the PUBLIC addresses, even while the extension is set to your local server
+fs.writeFileSync(path.join(app, 'plan.js'), fs.readFileSync(path.join(root, 'plan.js'), 'utf8').replace(/http:\/\/eblyn\.local\//g, 'https://eblyn.com/'));
 // the website keeps the fonts once, in ../../assets/fonts
 fs.writeFileSync(path.join(app, 'popup.css'), fs.readFileSync(path.join(root, 'popup.css'), 'utf8').replace(/url\("fonts\//g, 'url("../../assets/fonts/'));
 

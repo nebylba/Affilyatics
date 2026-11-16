@@ -7,12 +7,12 @@
 
 const PLAN_CFG = {
   // Where the license server lives. Changing the domain later means releasing an extension update.
-  api: 'https://eblyn.com/Affilyatics/api/v1',
+  api: 'http://eblyn.local/Affilyatics/api/v1',
   // Public half of the signing key (base64 SPKI). The matching private key lives only on the server (php _lib/make-keys.php).
   publicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxceWprn33HVNKGLIxsVn/HMsuSwaGcnIINdYR2YDRZai/j00oxzirfY6fKuBq8TlTu+1P8zOGaj/f3OpCNMp90ONaIRBCgh6tRmT8jay/RErYebX4+j5zmnIjm3pcWvdLgWdnfV5PtsO/s9jD0GkuZ5CqIdBAgSNaMAY3cK4hGKe9ljX+avyIRE9clie3PbuavM2q6KlHnPSQn+/R8u+LmbD01o9q0ZOFW2kOOl9rM7zVO9aznx7s2/7mpZeYE9rJ6OFj1i9yqW7za6JIhZZnWD/nOSuK9MMbm0QnY3XHVEgEE7xUl4tP3ejzdR8261V9n/B8WNMZ4FVHXu2SFe8fQIDAQAB',
-  signinUrl: 'https://eblyn.com/Affilyatics/signin/',      // the page where people sign in (Firebase: e-mail or Google)
-  pricingUrl: 'https://eblyn.com/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
-  privacyUrl: 'https://eblyn.com/Affilyatics/privacy/',
+  signinUrl: 'http://eblyn.local/Affilyatics/signin/',      // the page where people sign in (Firebase: e-mail or Google)
+  pricingUrl: 'http://eblyn.local/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
+  privacyUrl: 'http://eblyn.local/Affilyatics/privacy/',
   trialDays: 14,
   recheckHours: 12
 };

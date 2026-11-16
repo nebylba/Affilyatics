@@ -23,6 +23,8 @@ if len(m['description']) > 132:
 plan = open(os.path.join(ROOT, 'plan.js'), encoding='utf8').read()
 if not re.search(r"publicKey:\s*'[A-Za-z0-9+/=]{300,}'", plan):
     fail('plan.js has no license public key')
+if re.search(r"(api|signinUrl):\s*'http://", plan) or 'eblyn.local' in plan or 'localhost' in plan:
+    fail('plan.js still points at a local address: run  python tools/set-env.py prod  first')
 if 'eblyn.com' not in plan:
     fail('plan.js api address looks wrong')
 
