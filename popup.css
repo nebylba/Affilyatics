@@ -474,3 +474,13 @@ body.gate-mode #main { flex: 1; }
 .menu .mi.locked { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; opacity: .55; cursor: pointer; }
 .menu .mi.locked:hover { opacity: .85; }
 .lockrow { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* Upgrade button (Free plan) next to the close X; the Refresh button is green */
+.brow.r1 { display: flex; gap: 6px; justify-content: flex-end; }
+.upgradebtn { height: 40px; padding: 0 14px; border-radius: 6px; background: var(--accent); border-color: var(--accent); color: var(--navy-on, #14244a); font-weight: 700; letter-spacing: .03em; cursor: pointer; }
+.upgradebtn:hover { filter: brightness(.95); border-color: var(--accent); }
+.upgradebtn[hidden] { display: none; }
+.refreshbtn { background: var(--good); border-color: var(--good); color: #fff; }
+.refreshbtn:hover { filter: brightness(.95); border-color: var(--good); }
+:root[data-theme="dark"] .refreshbtn { color: #062515; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .refreshbtn { color: #062515; } }
