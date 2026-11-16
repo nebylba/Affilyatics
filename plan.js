@@ -19,7 +19,7 @@ const PLAN_CFG = {
   privacyUrl: 'http://eblyn.local/Affilyatics/privacy/',
   contactEmail: 'contact@eblyn.com',                       // support address shown in the footer of the sign-in screen
   trialDays: 14,
-  recheckHours: 12
+  recheckHours: 0.25            // the worker asks the server about the plan every 15 minutes (and the open window every 20 seconds)
 };
 
 // Signed in? (an account token that the server made for this browser and has not run out). Everything needs it, Free included.

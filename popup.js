@@ -812,6 +812,18 @@ function footerHTML() {
   </div>`;
 }
 document.addEventListener('input', (e) => { const t = e.target; if (t && t.id === 'gmail') view.draft.email = t.value; else if (t && t.id === 'gpass') view.draft.password = t.value; });
+// While the window is open the plan is re-checked every 20 s (every 5 s for 10 minutes after "See plans" was clicked), so a purchase or a
+// plan given in the backoffice shows up by itself. (A push from the server is not possible for an extension without a push service.)
+let planTimer = null, planTimerFast = false;
+function ensurePlanPolling() {
+  if (typeof setInterval === 'undefined') return;
+  const want = signedIn(), fast = !!(view.fastUntil && Date.now() < view.fastUntil);
+  if ((!want && planTimer) || (planTimer && planTimerFast !== fast)) { clearInterval(planTimer); planTimer = null; }
+  if (want && !planTimer) {
+    planTimerFast = fast;
+    planTimer = setInterval(() => { if (typeof document !== 'undefined' && document.hidden) return; chrome.runtime.sendMessage({ type: 'license', action: 'refresh' }).catch(() => {}); }, fast ? 5000 : 20000);
+  }
+}
 let pollTimer = null;
 function ensureAuthPolling() {
   const want = !signedIn() && license.pending && Date.now() - license.pending.at < 10 * 60000;
@@ -894,6 +906,7 @@ function upsellHTML() {
   </div></div>`;
 }
 function planBannerHTML() {
+  if (view.justUnlocked && Date.now() - view.justUnlocked < 30000) return '<div class="banner plan" role="status"><span><b>Pro is now active.</b> Every Pro feature is unlocked. Enjoy!</span></div>';
   const i = planInfo(license);
   if (i.plan === 'pro' && i.source === 'trial' && i.daysLeft <= 3) return `<div class="banner plan" role="status"><span>Your Pro trial ends in ${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'}.</span><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">Keep Pro</button></div>`;
   if (i.plan === 'free' && i.trialEnded && !settings.dismissTrialEnded) return `<div class="banner plan" role="status"><span>Your Pro trial has ended. You are on Free now and keep all your data.</span><span class="hbtns"><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">See plans</button><button type="button" id="dismisstrial" aria-label="Dismiss">✕</button></span></div>`;
@@ -1111,6 +1124,7 @@ function render() {
     }
   }
   ensureAuthPolling();
+  ensurePlanPolling();
   drawTour();
 }
 
@@ -1232,7 +1246,7 @@ document.addEventListener('click', async (e) => {
     const text = heldDiagnostics(collect('day')), b = q('[data-copydiag]');
     try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; } catch (_) { b.textContent = 'Copy failed'; }
   }
-  else if (q('[data-open]')) chrome.tabs.create({ url: q('[data-open]').dataset.open });
+  else if (q('[data-open]')) { const u = q('[data-open]').dataset.open; if (u === PLAN_CFG.pricingUrl) { view.fastUntil = Date.now() + 600000; ensurePlanPolling(); } chrome.tabs.create({ url: u }); }
   else if (q('#retry')) { requestLoad(true); }
   else if (q('#done')) { view.showSettings = false; render(); requestLoad(); }
   else if (q('#reset')) { await saveSettings({ ...DEFAULTS }, false); view.sel = null; view.period = DEFAULTS.period; view.from = view.to = view.sub = view.group = null; view.cumulative = false; view.hideLast = false; view.metrics = new Set(['earnings', 'clicks', 'ordered']); render(); }
@@ -1360,7 +1374,7 @@ chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
   if (ch.cache) { cache = ch.cache.newValue || {}; dirty = true; }
   if (ch.status) { status = ch.status.newValue || {}; dirty = true; }
-  if (ch.license) { const was = signedIn(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } dirty = true; }
+  if (ch.license) { const was = signedIn(), wasPro = isProNow(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } if (!wasPro && isProNow()) { view.justUnlocked = Date.now(); view.fastUntil = 0; requestLoad(true); } dirty = true; }
   if (ch.accounts) { setAccounts(ch.accounts.newValue); dirty = true; }
   if (ch.notif) {
     notif = ch.notif.newValue || { items: [], readAt: 0 };
@@ -1384,7 +1398,7 @@ chrome.storage.onChanged.addListener((ch) => {
     clampView();
     render();
     if (signedIn()) requestLoad();
-    chrome.runtime.sendMessage({ type: 'license', action: 'check' }).catch(() => {});   // the worker only asks the server when the answer is older than 12 hours
+    if (signedIn()) chrome.runtime.sendMessage({ type: 'license', action: 'refresh' }).catch(() => {});      // ask the server about the plan right now   // the worker only asks the server when the answer is older than 12 hours
   } catch (e) {
     console.error('[affilyatics] startup failed', e);
     const m = document.querySelector('#main');
