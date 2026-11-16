@@ -34,7 +34,7 @@ function openUpsell(key) { closePops(); view.upsell = UPSELL[key] ? key : 'plan'
 // A view that Free does not include (restored from an earlier Pro/trial session, or after a trial ended) falls back to a Free one.
 function clampView() {
   if (isProNow()) return;
-  if (!periodOk(view.period)) { view.period = 'month'; view.from = view.to = null; view.group = null; }
+  if (view.period === 'custom' ? !FEATURES.free.customRange : !periodOk(view.period)) { view.period = 'month'; view.from = view.to = null; view.group = null; }
   if (!periodOk(settings.period)) settings.period = 'month';
   view.tags = null;
   if (view.sub && !tabOk(view.sub)) view.sub = null;
@@ -835,7 +835,7 @@ function ensureAuthPolling() {
 // view.tour = index of the step on screen, or null. Steps whose target is not on screen are skipped.
 const TOUR = [
   { sel: '#storefilter', title: 'Your stores', text: () => 'Every store of your Associates account. Click the menu to see one store, or tick several to combine them. The countries follow your choice.' },
-  { sel: '.toolbar .when', title: 'Dates', text: () => (isProNow() ? 'Today, the last 7 or 30 days, quarters, years, or any dates you choose with the calendar.' : 'Today, yesterday, this month or last month. Pro adds the last 7 and 30 days, quarters, years and any custom range.') },
+  { sel: '.toolbar .when', title: 'Dates', text: () => 'Today, the last 7 or 30 days, quarters, years, or any dates you choose with the calendar.' },
   { sel: '.locwrap', title: 'Countries and tags', text: () => (isProNow() ? 'Choose the countries to show. The Tags filter narrows everything to the tracking IDs you pick. Each filter only offers what the one before it leaves.' : 'Choose the countries to show. The Tags filter (Pro) narrows everything to one tracking ID, with the real daily clicks per tag.') },
   { sel: '.brow.r2', title: 'Alerts and settings', text: () => (isProNow() ? 'The bell lists new orders, commissions, bonuses and Creator Rewards tiers (and sends desktop pop-ups if you turn them on). Settings: countries, stores, alerts, your plan, and this tour again.' : 'The bell lists new orders, sign-outs and Amazon report problems (Pro adds every alert type and desktop pop-ups). Settings: countries, stores, alerts, your plan, and this tour again. Locked items show a lock: try them all with a 14-day Pro trial.') }
 ];
@@ -947,7 +947,7 @@ const rangeText = (a, b, withYear = true) => (a === b ? fmtDay(a, withYear) : `$
 // Period list: same look as the Metrics menu.
 function periodDropdownHTML() {
   const label = view.period === 'custom' ? 'Custom range' : (PERIODS.find((p) => p.id === view.period) || {}).label || 'This month';
-  const row = (id, text, hint) => (id === 'custom' ? isProNow() : periodOk(id))
+  const row = (id, text, hint) => (id === 'custom' ? (isProNow() || FEATURES.free.customRange) : periodOk(id))
     ? `<button type="button" class="mi pi ${view.period === id ? 'sel' : ''}" role="option" aria-selected="${view.period === id}" data-pick="${id}"><span class="chk">${view.period === id ? '✓' : ''}</span><span>${text}</span><em class="muted small">${hint}</em></button>`
     : `<button type="button" class="mi pi locked" role="option" aria-disabled="true" data-lock="${id === 'custom' ? 'custom' : 'periods'}"><span class="chk"></span><span>${text}</span>${PRO_PILL}</button>`;
   const items = PERIODS.map((p) => { const [a, b] = rangeFor(p.id); return row(p.id, p.label, rangeText(a, b, false)); }).join('') + row('custom', 'Custom range…', '');
@@ -983,7 +983,7 @@ function calHTML() {
 }
 function rangeButtonHTML() {
   const [a, b] = curRange();
-  if (!isProNow()) return `<div class="dd"><button type="button" class="rngbtn locked" data-lock="custom" title="Custom date ranges are included in Pro">${ICON_CAL}<span>${esc(rangeText(a, b))}</span>${LOCK}</button></div>`;
+  if (!isProNow() && !FEATURES.free.customRange) return `<div class="dd"><button type="button" class="rngbtn locked" data-lock="custom" title="Custom date ranges are included in Pro">${ICON_CAL}<span>${esc(rangeText(a, b))}</span>${LOCK}</button></div>`;
   return `<div class="dd"><button type="button" class="rngbtn" data-dd="cal" aria-haspopup="dialog" aria-expanded="${view.calOpen}" title="Click to choose dates">${ICON_CAL}<span>${esc(rangeText(a, b))}</span></button>${view.calOpen ? calHTML() : ''}</div>`;
 }
 

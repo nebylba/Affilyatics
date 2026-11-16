@@ -25,10 +25,10 @@ const PLAN_CFG = {
 // Signed in? (an account token that the server made for this browser and has not run out). Everything needs it, Free included.
 const accountOk = (lic, now = Date.now()) => !!(lic && lic.account && lic.account.token && now < lic.account.exp);
 
-const FREE_PERIODS = ['today', 'yesterday', 'month', 'lastMonth'];
+const FREE_PERIODS = typeof PERIODS !== 'undefined' ? PERIODS.map((p) => p.id) : ['today', 'yesterday', 'last7', 'last30', 'month', 'lastMonth', 'quarter', 'lastQuarter', 'year', 'lastYear'];   // every period is free; custom ranges too
 const FREE_NOTIFY = ['orders', 'signedout', 'dataissue'];
 const FEATURES = {
-  free: { periods: FREE_PERIODS, customRange: false, tags: false, tabs: ['countries', 'dates'], otherSites: false, rewardsTier: false, gapGuard: false, desktop: false, notify: FREE_NOTIFY, autoRefreshMin: 30 },
+  free: { periods: FREE_PERIODS, customRange: true, tags: false, tabs: ['countries', 'dates'], otherSites: false, rewardsTier: false, gapGuard: false, desktop: false, notify: FREE_NOTIFY, autoRefreshMin: 30 },
   pro:  { periods: null, customRange: true, tags: true, tabs: null, otherSites: true, rewardsTier: true, gapGuard: true, desktop: true, notify: null, autoRefreshMin: 5 }
 };
 

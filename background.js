@@ -698,7 +698,7 @@ async function load(req) {
   if (!pro) { for (const k of Object.keys(notifyConf)) if (!FREE_NOTIFY.includes(k)) notifyConf[k] = false; }   // Free: orders, sign-outs, report problems; no desktop pop-ups
   notifySnaps = null;
   if (!pro) {
-    if (!FREE_PERIODS.includes(req.period)) { req.period = 'month'; req.range = undefined; }          // periods beyond the Free ones
+    if (req.period === 'custom' ? !FEATURES.free.customRange : !FREE_PERIODS.includes(req.period)) { req.period = 'month'; req.range = undefined; }          // (every period is free today; kept in case the Free list shrinks)
     req.locales = (req.locales || []).filter((l) => !SEPARATE_SITES[l]);
     req.dims = (req.dims || []).filter((d) => d !== 'tag' && d !== 'tagday' && d !== 'cat' && d !== 'product');
   }

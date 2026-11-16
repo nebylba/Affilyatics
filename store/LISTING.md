@@ -39,8 +39,8 @@ AND MUCH MORE
 FREE AND PRO
 Pro is $4.99 per month, $54.89 per year (one month free), or $99 once (Lifetime).
 Free: one Associates account with all its stores and countries, total income, chart, countries and dates tables, today,
-yesterday, this month and last month, alerts for new orders / sign-outs / report problems, updates every 30 minutes.
-Pro: every period and custom date ranges, tag filters, tracking ID / category / product tables, Creator Rewards tiers and
+yesterday, this month, last 7/30 days, quarters, years and custom date ranges, alerts for new orders / sign-outs / report problems, updates every 30 minutes.
+Pro: tag filters, tracking ID / category / product tables, Creator Rewards tiers and
 enrollment alerts, all alert types and desktop pop-ups, other Associates sites, report-gap protection, updates every 5 minutes.
 A free account (e-mail or Google) is required. Try Pro free for 14 days, no credit card required. Refund of the current month in full, no questions asked.
 
