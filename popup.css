@@ -331,7 +331,7 @@ tr.held td:first-child { box-shadow: inset 3px 0 0 var(--s-pending); }
 .storebtn b { font-weight: 600; font-size: 15px; }
 .storebtn .more { color: var(--muted); font-size: 12px; }
 .storemenu { min-width: 340px; max-height: 70vh; overflow: auto; }
-.tagmenu { min-width: 320px; max-height: 70vh; overflow: auto; }
+.tagmenu { min-width: 410px; max-height: 70vh; overflow: auto; }
 .scrow { display: flex; flex-direction: column; flex: 1; min-width: 0; text-align: left; }
 .scrow b { font-weight: 600; }
 .scrow small { color: var(--muted); font-size: 12px; }
@@ -484,3 +484,6 @@ body.gate-mode #main { flex: 1; }
 .upgradebtn[hidden] { display: none; }
 .refreshbtn { background: #16a34a; border-color: #16a34a; color: #fff; }
 .refreshbtn:hover { filter: none; background: #15803d; border-color: #15803d; }
+
+/* pills inside menu rows: a full, un-stretched pill at the end of the row (the generic ".mi span" would stretch it) */
+.mi .propill, .mi .propill.trial { flex: none; margin-left: 4px; }
