@@ -90,3 +90,4 @@ Newest first. Dates are when the change was made.
 - The plan is re-checked on open, every 20 s while the window is open (5 s after See plans), and every 15 min in the background; Pro unlocks the screen by itself.
 - Every period and the custom range are now FREE (Free vs Pro: tags, tabs, Creator Rewards, alerts, other sites, gap guard, 5-min refresh).
 - Free = 1 store (the main store, the first Amazon lists); Pro and Lifetime = unlimited stores.
+- Free: Countries and Tags menus also list what we found (countries of other stores, tracking-ID names) grayed with a PRO pill.

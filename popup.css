@@ -470,3 +470,7 @@ body.gate-mode #main { flex: 1; }
 /* stores found in the account but not part of the Free plan: listed, grayed, with a PRO pill */
 .storemenu .mi.locked { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; opacity: .55; cursor: pointer; }
 .storemenu .mi.locked:hover { opacity: .85; }
+
+.menu .mi.locked { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; opacity: .55; cursor: pointer; }
+.menu .mi.locked:hover { opacity: .85; }
+.lockrow { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }

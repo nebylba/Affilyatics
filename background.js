@@ -700,7 +700,7 @@ async function load(req) {
   if (!pro) {
     if (req.period === 'custom' ? !FEATURES.free.customRange : !FREE_PERIODS.includes(req.period)) { req.period = 'month'; req.range = undefined; }          // (every period is free today; kept in case the Free list shrinks)
     req.locales = (req.locales || []).filter((l) => !SEPARATE_SITES[l]);
-    req.dims = (req.dims || []).filter((d) => d !== 'tag' && d !== 'tagday' && d !== 'cat' && d !== 'product');
+    req.dims = (req.dims || []).filter((d) => d !== 'tagday' && d !== 'cat' && d !== 'product');          // 'tag' (just the tracking-ID names) is still read so the Free tags menu can list them, grayed
   }
   const weekAgo = Date.now() - 7 * 86400000;
   for (const k of Object.keys(cache)) if (cache[k].at < weekAgo) delete cache[k];

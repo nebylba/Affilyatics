@@ -532,11 +532,18 @@ function chartHTML(dayRows) {
 }
 
 // Multi-select dropdown (checkboxes): which countries are shown (same look as the Metrics menu).
+// Free: countries that only your OTHER stores (or a separate Associates site) sell in are listed, grayed, with a PRO pill.
+function lockedCountries() {
+  if (isProNow()) return [];
+  const mine = new Set(accounts.flatMap((a) => a.locales || []));
+  return [...new Set(rawAccounts.flatMap((a) => a.locales || []))].filter((c) => LOCALES[c] && !mine.has(c));
+}
 function locsDropdownHTML() {
-  const all = enabledCountries(), sel = selLocales(), ok = new Set(allowedLocales());
+  const lockedSet = new Set(lockedCountries());
+  const all = enabledCountries().filter((c) => !lockedSet.has(c)), sel = selLocales().filter((c) => all.includes(c)), ok = new Set(allowedLocales());
   const items = all.map((c) => `<div class="mi${ok.has(c) ? '' : ' scoff'}"${ok.has(c) ? '' : ' title="The store you chose does not sell here"'}><input type="checkbox" data-loc="${c}" aria-label="Add or remove ${esc(LOCALES[c].label)}" ${sel.includes(c) ? 'checked' : ''} ${ok.has(c) ? '' : 'disabled'}><button type="button" class="lonly" data-only="${c}" ${ok.has(c) ? '' : 'disabled'} title="Show only ${esc(LOCALES[c].label)}">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></button><b class="muted">${LOCALES[c].cur}</b></div>`).join('');
   const menu = view.locOpen
-    ? `<div class="menu menuright" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}</div>`
+    ? `<div class="menu menuright" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}${lockedSet.size ? `<div class="msep"></div>${[...lockedSet].map((c) => `<div class="mi locked" data-lock="stores" title="Your other stores sell here. Included in Pro and Lifetime."><span class="lockrow">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></span>${PRO_PILL}</div>`).join('')}` : ''}</div>`
     : '';
   const flags = sel.length === all.length ? 'All countries' : sel.length === 1 ? LOCALES[sel[0]].label : `${sel.length} countries`;
   const shown = sel.length <= 5 ? sel.map((c) => flagSVG(c)).join('') : '';
@@ -620,7 +627,12 @@ function tagList() {
   return [...m.values()].sort((a, b) => e(b) - e(a) || b.clicks - a.clicks);
 }
 function tagsDropdownHTML() {
-  if (!isProNow()) return `<div class="dd"><button type="button" class="ddsum locked" data-lock="tags" title="Tag filters are included in Pro"><span class="muted small">TAGS</span> All tags ${LOCK}</button></div>`;
+  if (!isProNow()) {      // Free: the tracking IDs we found are listed, grayed, with a PRO pill (the filter itself is Pro)
+    const names = tagList().map((t) => t.name);
+    const rows = names.length ? names.map((n) => `<div class="mi locked" data-lock="tags" title="Tag filters are included in Pro and Lifetime"><span class="lockrow">${esc(n)}</span>${PRO_PILL}</div>`).join('') : `<p class="muted small" style="padding:8px">${isLoading() ? 'Loading tracking IDs…' : 'No tracking IDs found for this period.'}</p>`;
+    const menuF = view.tagOpen ? `<div class="menu menuright tagmenu" role="group" aria-label="Tags"><p class="muted small" style="margin:6px 8px">${names.length ? `We found <b>${names.length}</b> tracking ID${names.length === 1 ? '' : 's'} in your account.` : ''} Filtering by tag is included in Pro and Lifetime.</p><div class="msep"></div>${rows}</div>` : '';
+    return `<div class="dd"><button type="button" class="ddsum locked" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Tag filters are included in Pro"><span class="muted small">TAGS</span> All tags ${LOCK}</button>${menuF}</div>`;
+  }
   const list = tagList();
   const label = !view.tags ? 'All tags' : view.tags.size === 0 ? 'No tags' : view.tags.size === 1 ? [...view.tags][0] : `${view.tags.size} tags`;
   const total = list.length;
