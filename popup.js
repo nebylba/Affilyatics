@@ -30,6 +30,16 @@ const tabOk = (id) => isProNow() || FEATURES.free.tabs.includes(id);
 const trialAvailable = () => !(license.ent && (license.ent.trialEndsAt || license.ent.reason === 'trial_ended'));
 const LOCK = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const PRO_PILL = '<span class="propill">PRO</span>';
+// Tooltip of the header button (same look as the chart tooltips): what the trial is, what stays after it, what to do.
+function upgradeTipHTML(ti) {
+  const perks = ['Unlimited stores', 'Tag filters and the Tracking IDs, Categories and Products tabs', 'Creator Rewards tiers and alerts', 'All alert types and desktop pop-ups', 'Updates every 5 minutes'];
+  const list = perks.map((p) => `<div><span class="uk">✓</span><span>${esc(p)}</span></div>`).join('');
+  if (ti) {
+    const ends = license.ent && license.ent.trialEndsAt ? fmtDay(license.ent.trialEndsAt.slice(0, 10), true) : '';
+    return `<div class="d">Your free Pro trial</div><div class="ubig"><b>${ti.daysLeft} day${ti.daysLeft === 1 ? '' : 's'} left</b>${ends ? `<span class="muted">ends ${esc(ends)}</span>` : ''}</div>${list}<span class="hnote">Everything above is unlocked until then. After the trial you stay on Free (1 store, all your data kept).<b class="ucta">Click to keep Pro</b></span>`;
+  }
+  return `<div class="d">Affilyatics Pro</div>${list}<span class="hnote">${trialAvailable() ? 'Try every Pro feature free for 14 days, no credit card.' : 'Plans from $4.99 a month, or $99.99 once for Lifetime.'}<b class="ucta">Click to see the plans</b></span>`;
+}
 // During the 14-day trial every Pro feature works, but carries a "PRO (N days left)" pill so the user knows it will go away.
 const trialInfo = () => { const i = planInfo(license); return i.plan === 'pro' && i.source === 'trial' ? i : null; };
 const proMark = () => { const t = trialInfo(); return t ? `<span class="propill trial" title="Included in your free trial. In ${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'} this becomes a Pro feature.">PRO (${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'} left)</span>` : ''; };
@@ -1118,7 +1128,7 @@ function render() {
     : status.updatedAt ? `Updated ${new Date(status.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
   const stamps = amazonStamps();
   $('#status').title = 'Checked automatically; only data that is due is re-downloaded.' + (stamps.length ? '\nAmazon data last updated: ' + stamps.join(' · ') : '');
-  const upg = $('#upgradebtn'); if (upg) { const ti = trialInfo(); upg.hidden = !signedIn() || (isProNow() && !ti); upg.textContent = ti ? `${ti.daysLeft} day${ti.daysLeft === 1 ? '' : 's'} left in Pro` : (trialAvailable() ? 'Upgrade to Pro for free' : 'Upgrade to Pro'); }          // Free plan only: a button next to the close X
+  const upg = $('#upgradebtn'); if (upg) { const ti = trialInfo(); const wrap = upg.closest ? upg.closest('.upwrap') : null; upg.hidden = !signedIn() || (isProNow() && !ti); if (wrap) wrap.hidden = upg.hidden; const tipEl = $('#uptip'); if (tipEl) tipEl.innerHTML = upgradeTipHTML(ti); upg.textContent = ti ? `${ti.daysLeft} day${ti.daysLeft === 1 ? '' : 's'} left in Pro` : (trialAvailable() ? 'Upgrade to Pro for free' : 'Upgrade to Pro'); }          // Free plan only: a button next to the close X
   const chip = $('#planchip'); if (chip) { const w = planWords(); chip.textContent = w.chip; chip.className = 'planchip ' + (isProNow() ? 'pro' : 'free'); chip.title = w.line; chip.hidden = !signedIn(); }
   const up = $('#upsell'); if (up) up.innerHTML = view.upsell ? upsellHTML() : '';
   const th = $('#theme'); if (th) { th.innerHTML = isDark() ? ICON_SUN : ICON_MOON; th.title = isDark() ? 'Switch to light mode' : 'Switch to dark mode'; }
