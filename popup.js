@@ -786,6 +786,17 @@ function gateHTML() {
     <p class="muted small">By signing in you accept the <a href="${esc(PLAN_CFG.privacyUrl.replace('privacy/', 'terms/'))}" target="_blank" rel="noopener">Terms</a> and the <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>.</p>
   </section>`;
 }
+// Footer of the sign-in screen (the dashboard itself has none).
+function footerHTML() {
+  const home = PLAN_CFG.privacyUrl.replace('privacy/', ''), terms = home + 'terms/';
+  let ver = ''; try { ver = chrome.runtime.getManifest().version; } catch (_) { /* not available in tests */ }
+  const a = (href, text) => `<a href="${esc(href)}" target="_blank" rel="noopener">${text}</a>`;
+  return `<div class="fwrap">
+    <nav class="flinks" aria-label="Footer">${a(home, 'Website')}${a(terms, 'Terms')}${a(PLAN_CFG.privacyUrl, 'Privacy policy')}<a href="mailto:${esc(PLAN_CFG.contactEmail)}">Contact</a></nav>
+    <p class="fsmall">Your Amazon data stays in your browser. Affilyatics is an independent product, not affiliated with, endorsed by or sponsored by Amazon. Amazon and Amazon Associates are trademarks of Amazon.com, Inc. or its affiliates.</p>
+    <p class="fsmall">© ${new Date().getFullYear()} EBLYN${ver ? ` · Version ${esc(ver)}` : ''}</p>
+  </div>`;
+}
 let pollTimer = null;
 function ensureAuthPolling() {
   const want = !signedIn() && license.pending && Date.now() - license.pending.at < 10 * 60000;
@@ -1047,6 +1058,7 @@ function restoreView(v) {
 
 function render() {
   if (!signedIn()) { view.showSettings = false; view.tour = null; }
+  { const b = document.body; if (b && b.classList && b.classList.toggle) b.classList.toggle('gate-mode', !signedIn()); const ft = $('#pagefooter'); if (ft) { ft.hidden = signedIn(); ft.innerHTML = signedIn() ? '' : footerHTML(); } }
   pruneTags();
   persistView();
   const loading = isLoading();

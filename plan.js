@@ -13,6 +13,7 @@ const PLAN_CFG = {
   signinUrl: 'http://eblyn.local/Affilyatics/signin/',      // the page where people sign in (Firebase: e-mail or Google)
   pricingUrl: 'http://eblyn.local/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
   privacyUrl: 'http://eblyn.local/Affilyatics/privacy/',
+  contactEmail: 'contact@eblyn.com',                       // support address shown in the footer of the sign-in screen
   trialDays: 14,
   recheckHours: 12
 };
