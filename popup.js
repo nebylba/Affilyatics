@@ -30,6 +30,10 @@ const tabOk = (id) => isProNow() || FEATURES.free.tabs.includes(id);
 const trialAvailable = () => !(license.ent && (license.ent.trialEndsAt || license.ent.reason === 'trial_ended'));
 const LOCK = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const PRO_PILL = '<span class="propill">PRO</span>';
+// During the 14-day trial every Pro feature works, but carries a "PRO (N days left)" pill so the user knows it will go away.
+const trialInfo = () => { const i = planInfo(license); return i.plan === 'pro' && i.source === 'trial' ? i : null; };
+const proMark = () => { const t = trialInfo(); return t ? `<span class="propill trial" title="Included in your free trial. In ${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'} this becomes a Pro feature.">PRO (${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'} left)</span>` : ''; };
+const freeLocalesSet = () => new Set(((accounts.filter((a) => !isSepAccount(a))[0]) || {}).locales || []);
 // Free users see what Pro adds, and a click explains it (view.upsell = which feature asked).
 function openUpsell(key) { closePops(); view.upsell = UPSELL[key] ? key : 'plan'; render(); }
 // A view that Free does not include (restored from an earlier Pro/trial session, or after a trial ended) falls back to a Free one.
@@ -370,7 +374,7 @@ function totalCardHTML(dayRows) {
   const tiles = SOURCES.map(([id, label]) => {
     const has = t && t[id] > 0;
     const share = has && t.total > 0 ? `<span class="pc">${Math.round(t[id] / t.total * 100)}%</span>` : '';
-    return `<div class="tile${has ? '' : ' zero'}"${bdAttr(label, loc, bdMoney(id))}><div class="tl"><i style="background:var(--s-${id})"></i><span class="tn">${label}</span>${share}</div><b>${has ? amt(id) : '—'}</b>${id === 'rewards' && !byTag && rt ? `<div class="sub" title="${esc(rt.title)}">${esc(rt.text)}</div>` : sub(id)}</div>`;
+    return `<div class="tile${has ? '' : ' zero'}"${bdAttr(label, loc, bdMoney(id))}><div class="tl"><i style="background:var(--s-${id})"></i><span class="tn">${label}</span>${share}</div><b>${has ? amt(id) : '—'}</b>${id === 'rewards' && !byTag && rt ? `<div class="sub" title="${esc(rt.title)}">${esc(rt.text)} ${proMark()}</div>` : sub(id)}</div>`;
   }).join('');
   const note = curs.length > 1 ? `Amounts and shares are in ${main}; other currencies are listed below each amount.` : '';
   return `<div class="totalcard">
@@ -541,7 +545,7 @@ function lockedCountries() {
 function locsDropdownHTML() {
   const lockedSet = new Set(lockedCountries());
   const all = enabledCountries().filter((c) => !lockedSet.has(c)), sel = selLocales().filter((c) => all.includes(c)), ok = new Set(allowedLocales());
-  const items = all.map((c) => `<div class="mi${ok.has(c) ? '' : ' scoff'}"${ok.has(c) ? '' : ' title="The store you chose does not sell here"'}><input type="checkbox" data-loc="${c}" aria-label="Add or remove ${esc(LOCALES[c].label)}" ${sel.includes(c) ? 'checked' : ''} ${ok.has(c) ? '' : 'disabled'}><button type="button" class="lonly" data-only="${c}" ${ok.has(c) ? '' : 'disabled'} title="Show only ${esc(LOCALES[c].label)}">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></button><b class="muted">${LOCALES[c].cur}</b></div>`).join('');
+  const items = all.map((c) => `<div class="mi${ok.has(c) ? '' : ' scoff'}"${ok.has(c) ? '' : ' title="The store you chose does not sell here"'}><input type="checkbox" data-loc="${c}" aria-label="Add or remove ${esc(LOCALES[c].label)}" ${sel.includes(c) ? 'checked' : ''} ${ok.has(c) ? '' : 'disabled'}><button type="button" class="lonly" data-only="${c}" ${ok.has(c) ? '' : 'disabled'} title="Show only ${esc(LOCALES[c].label)}">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span>${trialInfo() && !freeLocalesSet().has(c) ? proMark() : ''}</button><b class="muted">${LOCALES[c].cur}</b></div>`).join('');
   const menu = view.locOpen
     ? `<div class="menu menuright" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}${lockedSet.size ? `<div class="msep"></div>${[...lockedSet].map((c) => `<div class="mi locked" data-lock="stores" title="Your other stores sell here. Included in Pro and Lifetime."><span class="lockrow">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></span>${PRO_PILL}</div>`).join('')}` : ''}</div>`
     : '';
@@ -616,7 +620,7 @@ function storeFilterHTML() {
   const sel = new Set(view.stores ? [...view.stores] : accounts.map((a) => a.id));
   const rows = accounts.map((a) => `<div class="mi"><input type="checkbox" data-storebox="${esc(a.id)}" aria-label="Add or remove ${esc(a.id)}" ${sel.has(a.id) ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="${esc(a.id)}" title="Show only ${esc(a.id)}"><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span></button><b class="muted small">${esc(amountText(tot[a.id]))}</b></div>`).join('');
   const menu = view.storeOpen
-    ? `<div class="menu storemenu" role="group" aria-label="Stores"><div class="mi allrow"><input type="checkbox" data-storeall="1" aria-label="Select or clear all stores" ${sel.size === accounts.length ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="" title="Show all stores"><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button><b class="muted">${sel.size}/${accounts.length}</b></div><div class="msep"></div>${rows}${hiddenStores().length ? `<div class="msep"></div>${hiddenStores().map((a) => `<div class="mi locked" data-lock="stores" title="We found this store in your account. It is included in Pro and Lifetime."><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span>${PRO_PILL}</div>`).join('')}` : ''}<p class="muted small" style="margin:8px 8px 4px">Click a name to see only that store · tick boxes to combine.</p></div>`
+    ? `<div class="menu storemenu" role="group" aria-label="Stores"><div class="mi allrow"><input type="checkbox" data-storeall="1" aria-label="Select or clear all stores" ${sel.size === accounts.length ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="" title="Show all stores"><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small>${accounts.length > 1 ? proMark() : ''}</span></button><b class="muted">${sel.size}/${accounts.length}</b></div><div class="msep"></div>${rows}${hiddenStores().length ? `<div class="msep"></div>${hiddenStores().map((a) => `<div class="mi locked" data-lock="stores" title="We found this store in your account. It is included in Pro and Lifetime."><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span>${PRO_PILL}</div>`).join('')}` : ''}<p class="muted small" style="margin:8px 8px 4px">Click a name to see only that store · tick boxes to combine.</p></div>`
     : '';
   return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sline"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more" title="${others} other store${others > 1 ? 's' : ''}">+${others}</span>` : ''}</span>${CHEVRON}</button>${menu}</div>`;
 }
@@ -642,7 +646,7 @@ function tagsDropdownHTML() {
     ? `<div class="menu menuright tagmenu" role="group" aria-label="Tags"><div class="mi allrow"><input type="checkbox" data-tagall="1" aria-label="All tags" ${!view.tags ? 'checked' : ''}><button type="button" class="lonly" data-tagallbtn="1"><span>All tags</span></button></div>${body}<p class="muted small" style="margin:8px 8px 4px">Filters the <b>cards, total income, countries table and Tracking IDs</b>.</p></div>`
     : '';
   const help = (view.tags ? `Tag filter on: ${view.tags.size} of ${total} tags. ` : 'Tags filter. ') + 'The cards, total income and countries table show only the selected tags. The chart shows their daily clicks. Amazon does not report earnings or orders per day for a tag, so the Dates tab shows all tags.';
-  return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div><span class="help taghelp ${view.tags ? 'pulse' : ''}" tabindex="0" data-tip="${esc(help)}">?</span>`;
+  return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${proMark()} ${CHEVRON}</button>${menu}</div><span class="help taghelp ${view.tags ? 'pulse' : ''}" tabindex="0" data-tip="${esc(help)}">?</span>`;
 }
 
 // Multi-select dropdown (checkboxes) next to the period select: which series the chart shows.
@@ -672,7 +676,7 @@ function tableHTML(dayRows, cardRows) {
   const byTag = tagMode();
   const incomeAll = byTag ? [] : collect('income');
   const rewardsAll = byTag ? [] : collect('rewards');
-  const tabs = `<div class="subtabs">${subOptions().map(([id, l]) => (tabOk(id) ? `<button type="button" data-sub="${id}" class="${id === sub ? 'on' : ''}">${l}</button>` : `<button type="button" data-lock="tabs" class="locked" title="Included in Pro">${l} ${LOCK}</button>`)).join('')}</div>`;
+  const tabs = `<div class="subtabs">${subOptions().map(([id, l]) => (tabOk(id) ? `<button type="button" data-sub="${id}" class="${id === sub ? 'on' : ''}">${l}${FEATURES.free.tabs.includes(id) ? '' : ' ' + proMark()}</button>` : `<button type="button" data-lock="tabs" class="locked" title="Included in Pro">${l} ${LOCK}</button>`)).join('')}</div>`;
   const empty = (msg) => `<p class="muted" style="padding:16px 0">${msg}</p>`;
   const wait = isLoading() ? 'Loading…' : 'No data for this period.';
   let body = '';
@@ -759,7 +763,7 @@ function countriesSettingsHTML() {
     const m = LOCALES[c], stores = accounts.filter((a) => (a.locales || []).includes(c)).length, t = tot[c];
     const stat = t ? `<b>${esc(amountText(t))}</b><small>${fmtNum(t.clicks)} clicks</small>` : '<small>no data yet</small>';
     if (!isProNow() && SEPARATE_SITES[c]) return `<label class="ccard locked" data-lock="sites" title="Countries on a separate Associates site are included in Pro"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}</b><small>${m.cur} · separate Associates site</small></span><span class="cstat">${PRO_PILL}</span></label>`;
-    return `<label class="ccard ${on(c) ? 'on' : ''}"><input type="checkbox" data-country="${c}" ${on(c) ? 'checked' : ''} aria-label="Show ${esc(m.label)}"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}</b><small>${m.cur}${stores ? ` · ${stores} store${stores > 1 ? 's' : ''}` : ''}</small></span><span class="cstat">${stat}</span><span class="switch" aria-hidden="true"></span></label>`;
+    return `<label class="ccard ${on(c) ? 'on' : ''}"><input type="checkbox" data-country="${c}" ${on(c) ? 'checked' : ''} aria-label="Show ${esc(m.label)}"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}${SEPARATE_SITES[c] ? proMark() : ''}</b><small>${m.cur}${stores ? ` · ${stores} store${stores > 1 ? 's' : ''}` : ''}</small></span><span class="cstat">${stat}</span><span class="switch" aria-hidden="true"></span></label>`;
   };
   return `<p class="muted small" style="margin:0 0 10px">Choose the countries the dashboard shows. Figures are for <b>${esc(periodLabel())}</b>.</p>
     <div class="cquick"><button type="button" class="linkbtn" data-cq="mine">Where my stores sell</button><button type="button" class="linkbtn" data-cq="active">Only with activity</button><button type="button" class="linkbtn" data-cq="all">All</button></div>
@@ -777,7 +781,7 @@ function storesSettingsHTML() {
     let lu = ''; for (const l of a.locales || []) { const e = entry(a.id, l, 'day'); if (e && e.lu) { lu = `${LOCALES[l].short} ${e.lu}`; break; } }
     const t = tot[a.id];
     return `<label class="scard ${on ? 'on' : 'off'}"><input type="checkbox" data-account="${esc(a.id)}" ${on ? 'checked' : ''} aria-label="Include ${esc(a.id)}">
-      <span class="sbody"><span class="srow1"><b>${esc(a.id)}</b>${i === 0 ? '<span class="badge amz">main</span>' : ''}${err ? '<span class="badge warn">not signed in</span>' : ''}${on ? '' : '<span class="badge">left out</span>'}</span>
+      <span class="sbody"><span class="srow1"><b>${esc(a.id)}</b>${i === 0 ? '<span class="badge amz">main</span>' : proMark()}${err ? '<span class="badge warn">not signed in</span>' : ''}${on ? '' : '<span class="badge">left out</span>'}</span>
         <span class="small muted">${esc(accountLabel(a))}${host ? ` · ${esc(host)}` : ''}</span>
         <span class="sflags">${(a.locales || []).map((l) => `<span class="cchip">${flagSVG(l)}${esc(LOCALES[l].short)}</span>`).join('')}</span>
         <span class="sstats">${t ? `<b>${esc(amountText(t))}</b> earned · ${fmtNum(t.clicks)} clicks <em>${esc(per)}</em>` : '<span class="muted">no figures loaded yet</span>'}</span>
@@ -935,7 +939,7 @@ function settingsHTML() {
   const accOn = (id) => !settings.accounts || settings.accounts.includes(id);
   const conf = notifyConf();
   const toggles = NOTIFY_TYPES.map(([id, label, col]) => (isProNow() || FREE_NOTIFY.includes(id)
-    ? `<label class="nt"><input type="checkbox" data-notify="${id}" ${conf[id] ? 'checked' : ''}><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span></label>`
+    ? `<label class="nt"><input type="checkbox" data-notify="${id}" ${conf[id] ? 'checked' : ''}><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span>${FREE_NOTIFY.includes(id) ? '' : proMark()}</label>`
     : `<label class="nt locked" data-lock="notify"><input type="checkbox" disabled><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span>${PRO_PILL}</label>`)).join('');
   return `<section class="set">
     <h2>Plan</h2>
@@ -946,7 +950,7 @@ function settingsHTML() {
     ${storesSettingsHTML()}
     <h2>Notifications</h2>
     <div class="nset"><div class="muted small">Notify me about</div><div class="ntoggles">${toggles}</div>
-      ${isProNow() ? `<label class="nt desk"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Also show desktop alerts <span class="muted small">(Chrome will ask for permission)</span></span></label>` : `<label class="nt desk locked" data-lock="desktop"><input type="checkbox" disabled><span>Also show desktop alerts ${PRO_PILL}</span></label>`}
+      ${isProNow() ? `<label class="nt desk"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Also show desktop alerts <span class="muted small">(Chrome will ask for permission)</span></span>${proMark()}</label>` : `<label class="nt desk locked" data-lock="desktop"><input type="checkbox" disabled><span>Also show desktop alerts ${PRO_PILL}</span></label>`}
       ${view.notifMsg ? `<p class="small" style="color:var(--bad);margin:8px 0 0">${esc(view.notifMsg)}</p>` : ''}
       <p class="muted small" style="margin:8px 0 0">Checked every few minutes while Chrome is open. The first load never creates alerts.</p></div>
     <div class="foot"><button type="button" id="tourstart">Take the tour</button><button type="button" id="reset">Reset to defaults</button><button type="button" id="done" class="primary">Done</button></div>
@@ -1025,7 +1029,7 @@ function notifPanelHTML() {
     ? notif.items.slice(0, 50).map((i) => `<div class="nitem ${i.ts > view.notifFrom ? 'new' : ''}" ${i.url ? `data-open="${esc(i.url)}" style="cursor:pointer" title="Click to open"` : ''}><i class="sw" style="background:${typeColor(i.type)}"></i><div><div class="ntitle">${esc(i.title)}</div><div class="nbody muted small">${esc(i.body)}</div></div><span class="ntime muted small">${timeAgo(i.ts)}</span><button type="button" class="ndel" data-ndel="${esc(i.id)}" aria-label="Delete this notification" title="Delete">✕</button></div>`).join('')
     : '<p class="muted nempty">No notifications yet.<br>New orders, commissions, bonuses and Creator Rewards will show up here.</p>';
   return `<div class="npanel" role="dialog" aria-label="Notifications">
-    <div class="nhead"><strong>Notifications</strong>${isProNow() ? `<label class="nt deskchk" title="Also show a Windows / Mac desktop pop-up for new alerts (Chrome will ask for permission)"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Desktop alerts</span></label>` : `<label class="nt deskchk locked" data-lock="desktop" title="Desktop alerts are included in Pro"><input type="checkbox" disabled><span>Desktop alerts ${PRO_PILL}</span></label>`}<span><button type="button" class="linkbtn" id="nclear" ${notif.items.length ? '' : 'disabled'}>Clear all</button></span></div>
+    <div class="nhead"><strong>Notifications</strong>${isProNow() ? `<label class="nt deskchk" title="Also show a Windows / Mac desktop pop-up for new alerts (Chrome will ask for permission)"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Desktop alerts</span>${proMark()}</label>` : `<label class="nt deskchk locked" data-lock="desktop" title="Desktop alerts are included in Pro"><input type="checkbox" disabled><span>Desktop alerts ${PRO_PILL}</span></label>`}<span><button type="button" class="linkbtn" id="nclear" ${notif.items.length ? '' : 'disabled'}>Clear all</button></span></div>
     ${view.notifMsg ? `<p class="small" style="color:var(--bad);margin:0;padding:6px 14px">${esc(view.notifMsg)}</p>` : ''}
     <div class="nlist">${list}</div>
     <div class="nfoot"><button type="button" class="linkbtn" id="nsettings">Notifications Settings</button></div>
@@ -1114,7 +1118,7 @@ function render() {
     : status.updatedAt ? `Updated ${new Date(status.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
   const stamps = amazonStamps();
   $('#status').title = 'Checked automatically; only data that is due is re-downloaded.' + (stamps.length ? '\nAmazon data last updated: ' + stamps.join(' · ') : '');
-  const upg = $('#upgradebtn'); if (upg) { upg.hidden = isProNow() || !signedIn(); upg.textContent = trialAvailable() ? 'Upgrade to Pro for free' : 'Upgrade to Pro'; }          // Free plan only: a button next to the close X
+  const upg = $('#upgradebtn'); if (upg) { const ti = trialInfo(); upg.hidden = !signedIn() || (isProNow() && !ti); upg.textContent = ti ? `${ti.daysLeft} day${ti.daysLeft === 1 ? '' : 's'} left in Pro` : (trialAvailable() ? 'Upgrade to Pro for free' : 'Upgrade to Pro'); }          // Free plan only: a button next to the close X
   const chip = $('#planchip'); if (chip) { const w = planWords(); chip.textContent = w.chip; chip.className = 'planchip ' + (isProNow() ? 'pro' : 'free'); chip.title = w.line; chip.hidden = !signedIn(); }
   const up = $('#upsell'); if (up) up.innerHTML = view.upsell ? upsellHTML() : '';
   const th = $('#theme'); if (th) { th.innerHTML = isDark() ? ICON_SUN : ICON_MOON; th.title = isDark() ? 'Switch to light mode' : 'Switch to dark mode'; }

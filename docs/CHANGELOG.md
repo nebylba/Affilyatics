@@ -92,3 +92,4 @@ Newest first. Dates are when the change was made.
 - Free = 1 store (the main store, the first Amazon lists); Pro and Lifetime = unlimited stores.
 - Free: Countries and Tags menus also list what we found (countries of other stores, tracking-ID names) grayed with a PRO pill.
 - Gifts: backoffice action on an account (1 month Pro or Lifetime Pro); the extension shows a gift banner and 'Pro (a gift)'.
+- The 14-day Pro trial starts automatically at the first sign-in; during it Pro features work and carry a 'PRO (N days left)' pill; the header button reads 'N days left in Pro'.
