@@ -774,17 +774,10 @@ function storesSettingsHTML() {
 // ---- first-run tour: a short guided walk over the real controls (Settings -> "Take the tour" runs it again) --------------
 // view.tour = index of the step on screen, or null. Steps whose target is not on screen are skipped.
 const TOUR = [
-  { sel: null, title: 'Welcome to Affilyatics', text: () => 'A 30-second tour of what you can do here. Everything you need to know with one click.' },
   { sel: '#storefilter', title: 'Your stores', text: () => 'Every store of your Associates account. Click the menu to see one store, or tick several to combine them. The countries follow your choice.' },
-  { sel: '#headtotal', title: 'Total income', text: () => 'Commissions, bounties, bonuses, Creator Connections and Creator Rewards in one card. Each country stays in its own currency, nothing is converted. Hover a figure to see it by country.' },
-  { sel: '.stats', title: 'Clicks, orders, shipments', text: () => 'Your key numbers for the period. Pending shipments and returned items are estimates, marked with "~": hover the "?" to see how they are worked out.' },
-  { sel: '.toolbar .when', title: 'Pick a period', text: () => (isProNow() ? 'Today, the last 7 or 30 days, quarters, years, or any dates you choose with the calendar.' : 'Today, yesterday, this month or last month. Pro adds the last 7 and 30 days, quarters, years and any custom range.') },
+  { sel: '.toolbar .when', title: 'Dates', text: () => (isProNow() ? 'Today, the last 7 or 30 days, quarters, years, or any dates you choose with the calendar.' : 'Today, yesterday, this month or last month. Pro adds the last 7 and 30 days, quarters, years and any custom range.') },
   { sel: '.locwrap', title: 'Countries and tags', text: () => (isProNow() ? 'Choose the countries to show. The Tags filter narrows everything to the tracking IDs you pick. Each filter only offers what the one before it leaves.' : 'Choose the countries to show. The Tags filter (Pro) narrows everything to one tracking ID, with the real daily clicks per tag.') },
-  { sel: '#chartbox', title: 'The chart', text: () => 'Earnings and any metrics you choose, by day, week or month. Hover for exact figures. "Current day performance" below shows today as it happens.' },
-  { sel: '#bell', title: 'Alerts', text: () => (isProNow() ? 'New orders, commissions, bonuses and Creator Rewards tiers land here, and as desktop pop-ups if you turn them on.' : 'New orders, sign-outs and Amazon report problems land here. Pro adds every alert type and desktop pop-ups.') },
-  { sel: '#refresh', title: 'Always up to date', text: () => `Figures refresh by themselves while Chrome is open (every ${FEATURES[isProNow() ? 'pro' : 'free'].autoRefreshMin} minutes on your plan). Press Refresh to check Amazon right now.` },
-  { sel: '#planchip', title: 'Your plan', text: () => (isProNow() ? 'This shows your plan. Click it to manage it.' : 'You are on Free. Locked items show a small lock: you can try all of them with a 14-day Pro trial, no credit card.') },
-  { sel: '#gear', title: 'Settings', text: () => 'Choose countries and stores, alerts and your plan. You can take this tour again from here.' }
+  { sel: '.brow.r2', title: 'Alerts and settings', text: () => (isProNow() ? 'The bell lists new orders, commissions, bonuses and Creator Rewards tiers (and sends desktop pop-ups if you turn them on). Settings: countries, stores, alerts, your plan, and this tour again.' : 'The bell lists new orders, sign-outs and Amazon report problems (Pro adds every alert type and desktop pop-ups). Settings: countries, stores, alerts, your plan, and this tour again. Locked items show a lock: try them all with a 14-day Pro trial.') }
 ];
 const tourVisible = (st) => { if (!st.sel) return true; const el = document.querySelector(st.sel); return !!(el && el.getBoundingClientRect && (el.getBoundingClientRect().width > 0)); };
 function endTour(done = true) { view.tour = null; if (done && !settings.tourDone) saveSettings({ tourDone: true }, false); const t = $('#tour'); if (t) t.innerHTML = ''; }
@@ -797,7 +790,7 @@ function drawTour() {
   const i = view.tour, st = steps[i], last = i === steps.length - 1;
   host.innerHTML = `<div class="tcatch"></div><div id="tourspot" class="tspot"></div><div id="tourcard" class="tcard" role="dialog" aria-label="Tour: ${esc(st.title)}">
     <div class="tstep">${i + 1} / ${steps.length}</div><h3>${esc(st.title)}</h3><p>${esc(st.text())}</p>
-    <div class="tbtns"><button type="button" class="linkbtn" data-tour="skip">${last ? 'Close' : 'Skip tour'}</button><span>${i ? '<button type="button" data-tour="back">Back</button>' : ''}${last ? `${!isProNow() && trialAvailable() ? '<button type="button" data-tour="trial">Start my free trial</button>' : ''}<button type="button" class="primary" data-tour="skip">Done</button>` : `<button type="button" class="primary" data-tour="next">${i ? 'Next' : 'Start the tour'}</button>`}</span></div></div>`;
+    <div class="tbtns"><button type="button" class="linkbtn" data-tour="skip">${last ? 'Close' : 'Skip tour'}</button><span>${i ? '<button type="button" data-tour="back">Back</button>' : ''}${last ? `${!isProNow() && trialAvailable() ? '<button type="button" data-tour="trial">Start my free trial</button>' : ''}<button type="button" class="primary" data-tour="skip">Done</button>` : `<button type="button" class="primary" data-tour="next">Next</button>`}</span></div></div>`;
   const spot = $('#tourspot'), card = $('#tourcard'), el = st.sel ? document.querySelector(st.sel) : null;
   if (el && el.scrollIntoView && !el.closest('.top')) el.scrollIntoView({ block: 'center' });
   const r = el ? el.getBoundingClientRect() : null, pad = 6;
