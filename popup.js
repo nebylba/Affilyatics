@@ -38,7 +38,7 @@ function upgradeTipHTML(ti) {
     const ends = license.ent && license.ent.trialEndsAt ? fmtDay(license.ent.trialEndsAt.slice(0, 10), true) : '';
     return `<div class="d">Your free Pro trial</div><div class="ubig"><b>${ti.daysLeft} day${ti.daysLeft === 1 ? '' : 's'} left</b>${ends ? `<span class="muted">ends ${esc(ends)}</span>` : ''}</div>${list}<span class="hnote">Everything above is unlocked until then. After the trial you stay on Free (1 store, all your data kept).<b class="ucta">Click to keep Pro</b></span>`;
   }
-  return `<div class="d">Affilyatics Pro</div>${list}<span class="hnote">${trialAvailable() ? 'Try every Pro feature free for 14 days, no credit card.' : 'Plans from $4.99 a month, or $99.99 once for Lifetime.'}<b class="ucta">Click to see the plans</b></span>`;
+  return `<div class="d">Affilyatics Pro</div>${list}<span class="hnote">${trialAvailable() ? 'Try every Pro feature free for 14 days, no credit card.' : 'Plans from $7.99 a month, or pay once with Lifetime.'}<b class="ucta">Click to see the plans</b></span>`;
 }
 // During the 14-day trial every Pro feature works, but carries a "PRO (N days left)" pill so the user knows it will go away.
 const trialInfo = () => { const i = planInfo(license); return i.plan === 'pro' && i.source === 'trial' ? i : null; };

@@ -37,7 +37,7 @@ AND MUCH MORE
 - Light and dark mode, filters remembered between visits
 
 FREE AND PRO
-Pro is $4.99 per month, $49.90 per year (two months free), or $99.99 once (Lifetime).
+Pro is $7.99 per month, $79.90 per year (two months free), or $199 once (Lifetime; $129 for the first 10 buyers).
 Free: 1 store (your main store) with all its countries, total income, chart, countries and dates tables, today,
 yesterday, this month, last 7/30 days, quarters, years and custom date ranges, alerts for new orders / sign-outs / report problems, updates every 30 minutes.
 Pro and Lifetime: unlimited stores, tag filters, tracking ID / category / product tables, Creator Rewards tiers and
