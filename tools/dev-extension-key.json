@@ -1,0 +1,5 @@
+{
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiguRPnESyHU+sgmtJGw5uABIMaxtWYzD69dlxFhwl96ekPuUQE/D8qHMZdgsf6esVhXm1wuUgwxUVjbtnS0uXBiOfBEAMQFK81nmui4LSYrOG/gj5hirgqVr2r6oGCvJaPXZvFmgGk8aGMe9HS5eNI9cpm/Uk6QBloOXtOD+dfqgDndAkm/U6caPTLVsjNKT2FW1VZSHL7DKKfQMrtUjWk28kIkXHzQb5nwmRisjjcACmU+IcliY5gcrGE7LLD14TzZsTqdWgWaFWxulIH2UUHcKE/b9gYWFGMu1hO9v9PbYgzE8Ubs6da6ijN/+byBAcnHAi7HAJxm+LCyl78OOSQIDAQAB",
+  "id": "fhccbomkecngijcmapafebjbbbmenahl",
+  "note": "Public key only. Gives the unpacked (local) extension a stable id, needed for the Google sign-in redirect address https://<id>.chromiumapp.org/. Added to manifest.json by set-env.py local, removed by set-env.py prod."
+}

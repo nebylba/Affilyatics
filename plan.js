@@ -10,6 +10,10 @@ const PLAN_CFG = {
   api: 'http://eblyn.local/Affilyatics/api/v1',
   // Public half of the signing key (base64 SPKI). The matching private key lives only on the server (php _lib/make-keys.php).
   publicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxceWprn33HVNKGLIxsVn/HMsuSwaGcnIINdYR2YDRZai/j00oxzirfY6fKuBq8TlTu+1P8zOGaj/f3OpCNMp90ONaIRBCgh6tRmT8jay/RErYebX4+j5zmnIjm3pcWvdLgWdnfV5PtsO/s9jD0GkuZ5CqIdBAgSNaMAY3cK4hGKe9ljX+avyIRE9clie3PbuavM2q6KlHnPSQn+/R8u+LmbD01o9q0ZOFW2kOOl9rM7zVO9aznx7s2/7mpZeYE9rJ6OFj1i9yqW7za6JIhZZnWD/nOSuK9MMbm0QnY3XHVEgEE7xUl4tP3ejzdR8261V9n/B8WNMZ4FVHXu2SFe8fQIDAQAB',
+  // Public web API key of the Firebase project (not a secret). Used for the sign-in forms inside the extension.
+  firebase: { apiKey: 'AIzaSyBAkaKazUQKafNcPhzwua22S1ePH3UHe90' },
+  // OAuth "Web client" id used for Google sign-in inside the extension (Google Cloud -> Credentials; see docs/Firebase-setup.md). Empty = Google button explains it is not set up.
+  googleClientId: '',
   signinUrl: 'http://eblyn.local/Affilyatics/signin/',      // the page where people sign in (Firebase: e-mail or Google)
   pricingUrl: 'http://eblyn.local/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
   privacyUrl: 'http://eblyn.local/Affilyatics/privacy/',
@@ -59,6 +63,21 @@ const PLAN_MESSAGES = {
   refunded: 'That license was refunded and no longer works.',
   license_other_account: 'That license key already belongs to another account. Write to us if it is yours.',
   unauthorized: 'Please sign in again.',
+  wrong_credentials: 'Wrong e-mail or password.',
+  email_exists: 'There is already an account with this e-mail. Sign in instead.',
+  invalid_email: 'That e-mail address does not look right.',
+  weak_password: 'Choose a password of at least 8 characters.',
+  too_many_attempts: 'Too many tries. Wait a few minutes and try again.',
+  provider_disabled: 'This sign-in method is not enabled yet.',
+  user_disabled: 'This account is disabled. Please contact support.',
+  google_cancelled: 'The Google window was closed before finishing.',
+  google_failed: 'Google sign-in did not complete. Try again, or use your e-mail.',
+  google_not_set_up: 'Google sign-in is not set up yet. Use your e-mail for now.',
+  not_configured: 'Sign-in is not configured yet.',
+  firebase_error: 'The sign-in service had a problem. Please try again.',
+  bad_token: 'We could not verify your sign-in. Please try again.',
+  wrong_project: 'Sign-in is misconfigured on our side. Please contact support.',
+  no_email: 'Your account has no e-mail address.',
   blocked: 'This account is blocked. Please contact support.',
   sign_in_expired: 'The sign-in took too long. Please try again.',
   email_unverified: 'Your e-mail is not verified yet.',

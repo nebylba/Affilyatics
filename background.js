@@ -875,7 +875,8 @@ chrome.runtime.onMessage.addListener((msg, _s, send) => {
   if (msg?.type === 'load') { load(msg); send({ ok: true }); }
   else if (msg?.type === 'license') {      // trial / activate / deactivate / refresh, asked from Settings -> Plan
     const a = msg.action;
-    const run = a === 'authstart' ? authStart() : a === 'authpoll' ? authPoll() : a === 'authcancel' ? authCancel() : a === 'signout' ? signOut()
+    const run = a === 'login' ? signInPassword({ mode: msg.mode, email: String(msg.email || '').trim().slice(0, 190), password: String(msg.password || '').slice(0, 200) }) : a === 'google' ? signInGoogle()
+      : a === 'authstart' ? authStart() : a === 'authpoll' ? authPoll() : a === 'authcancel' ? authCancel() : a === 'signout' ? signOut()
       : a === 'trial' ? licenseSync('trial')
       : a === 'redeem' ? licenseSync('redeem', { licenseKey: String(msg.key || '').trim().slice(0, 80) })
       : licenseCheckIfDue(a !== 'check');            // 'check' (dashboard opened): only if the answer is older than 12 h; 'refresh' ("Check again"): always

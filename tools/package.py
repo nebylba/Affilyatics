@@ -28,6 +28,8 @@ if re.search(r"(api|signinUrl):\s*'http://", plan) or 'eblyn.local' in plan or '
 if 'eblyn.com' not in plan:
     fail('plan.js api address looks wrong')
 
+if 'key' in m:
+    fail('manifest.json has a "key" (local testing): run  python tools/set-env.py prod  first')
 need = set(INCLUDE_FILES)
 for f in need:
     if not os.path.isfile(os.path.join(ROOT, f)):

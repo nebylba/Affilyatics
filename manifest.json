@@ -14,14 +14,16 @@
   "permissions": [
     "storage",
     "alarms",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "identity"
   ],
   "optional_permissions": [
     "notifications"
   ],
   "host_permissions": [
     "https://affiliate-program.amazon.com/*",
-    "https://associates.amazon.ca/*"
+    "https://associates.amazon.ca/*",
+    "https://identitytoolkit.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -34,5 +36,6 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiguRPnESyHU+sgmtJGw5uABIMaxtWYzD69dlxFhwl96ekPuUQE/D8qHMZdgsf6esVhXm1wuUgwxUVjbtnS0uXBiOfBEAMQFK81nmui4LSYrOG/gj5hirgqVr2r6oGCvJaPXZvFmgGk8aGMe9HS5eNI9cpm/Uk6QBloOXtOD+dfqgDndAkm/U6caPTLVsjNKT2FW1VZSHL7DKKfQMrtUjWk28kIkXHzQb5nwmRisjjcACmU+IcliY5gcrGE7LLD14TzZsTqdWgWaFWxulIH2UUHcKE/b9gYWFGMu1hO9v9PbYgzE8Ubs6da6ijN/+byBAcnHAi7HAJxm+LCyl78OOSQIDAQAB"
 }

@@ -37,4 +37,19 @@ for key, tail in KEYS:
         print('Could not find', key, 'in plan.js')
         sys.exit(1)
 open(P, 'w', encoding='utf8', newline='').write(s)
+
+# manifest: the local build gets a fixed extension id (needed for the Google sign-in redirect address), the store build must not have a key
+import json
+MP = os.path.join(ROOT, 'manifest.json')
+raw = open(MP, encoding='utf8', newline='').read()
+nl = '\r\n' if '\r\n' in raw else '\n'
+man = json.loads(raw)
+dev = json.load(open(os.path.join(ROOT, 'tools', 'dev-extension-key.json'), encoding='utf8'))
+if env == 'local':
+    man['key'] = dev['key']
+else:
+    man.pop('key', None)
+open(MP, 'w', encoding='utf8', newline='').write(json.dumps(man, indent=2, ensure_ascii=False).replace('\n', nl) + nl)
+if env == 'local':
+    print('Extension id while local:', dev['id'], '-> Google redirect address: https://%s.chromiumapp.org/' % dev['id'])
 print('Extension now points at', env, '->', base, '(reload it in chrome://extensions)')

@@ -91,6 +91,65 @@ async function signOut() {
   return { ok: true };
 }
 
+// ---- sign-in INSIDE the extension: Firebase Authentication over its REST API (e-mail + password) and Google through Chrome's own
+// sign-in window (chrome.identity). Either way we end up with a Firebase ID token, which only our server sees; it answers with our account token.
+const FB_ERR = { INVALID_LOGIN_CREDENTIALS: 'wrong_credentials', INVALID_PASSWORD: 'wrong_credentials', EMAIL_NOT_FOUND: 'wrong_credentials', EMAIL_EXISTS: 'email_exists', INVALID_EMAIL: 'invalid_email', MISSING_EMAIL: 'invalid_email', MISSING_PASSWORD: 'weak_password', WEAK_PASSWORD: 'weak_password', USER_DISABLED: 'user_disabled', TOO_MANY_ATTEMPTS_TRY_LATER: 'too_many_attempts', OPERATION_NOT_ALLOWED: 'provider_disabled', INVALID_IDP_RESPONSE: 'google_failed' };
+async function fbCall(method, body) {
+  if (!PLAN_CFG.firebase || !PLAN_CFG.firebase.apiKey) throw new Error('not_configured');
+  let r, j;
+  try { r = await fetch(`https://identitytoolkit.googleapis.com/v1/${method}?key=${PLAN_CFG.firebase.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'omit', cache: 'no-store' }); j = await r.json(); }
+  catch (e) { throw new Error('network'); }
+  if (!r.ok) { const m = (j.error && j.error.message) || ''; const k = Object.keys(FB_ERR).find((x) => m.startsWith(x)); throw new Error(k ? FB_ERR[k] : 'firebase_error'); }
+  return j;
+}
+// A Firebase ID token -> our server -> account token (stored), then the plan is fetched.
+async function acceptLogin(idToken) {
+  const installId = await ensureInstallId();
+  let r;
+  try { r = await apiCall('auth-login', { installId, idToken, version: chrome.runtime.getManifest().version }); } catch (e) { return { ok: false, error: e.message }; }
+  if (!r.ok || !r.accountToken) return { ok: false, error: r.error || 'server_error' };
+  const lic = await getLicense(); delete lic.pending;
+  await saveLicense({ ...lic, account: { token: r.accountToken, exp: r.accountExp * 1000, email: r.user && r.user.email, name: r.user && r.user.name }, lastError: null });
+  const s = await licenseSync('status');
+  return { ok: true, plan: s.plan };
+}
+// mode: 'in' | 'up' (create account) | 'resend' (verification e-mail again) | 'reset' (password reset e-mail)
+async function signInPassword({ mode, email, password }) {
+  try {
+    if (!email || (mode !== 'reset' && !password)) return { ok: false, error: mode === 'reset' ? 'invalid_email' : 'wrong_credentials' };
+    if (mode === 'reset') { await fbCall('accounts:sendOobCode', { requestType: 'PASSWORD_RESET', email }); return { ok: true, info: 'reset_sent' }; }
+    if (mode === 'up') {
+      if (password.length < 8) return { ok: false, error: 'weak_password' };
+      const fb = await fbCall('accounts:signUp', { email, password, returnSecureToken: true });
+      await fbCall('accounts:sendOobCode', { requestType: 'VERIFY_EMAIL', idToken: fb.idToken });
+      return { ok: false, error: 'verify_needed' };
+    }
+    const fb = await fbCall('accounts:signInWithPassword', { email, password, returnSecureToken: true });
+    if (mode === 'resend') { await fbCall('accounts:sendOobCode', { requestType: 'VERIFY_EMAIL', idToken: fb.idToken }); return { ok: true, info: 'verify_resent' }; }
+    const r = await acceptLogin(fb.idToken);
+    if (!r.ok && r.error === 'email_unverified') {
+      try { await fbCall('accounts:sendOobCode', { requestType: 'VERIFY_EMAIL', idToken: fb.idToken }); } catch (_) { /* too soon: the button can resend */ }
+      return { ok: false, error: 'verify_needed' };
+    }
+    return r;
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+const b64uJson = (s) => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))));
+async function signInGoogle() {
+  if (!PLAN_CFG.googleClientId) return { ok: false, error: 'google_not_set_up' };
+  const redirect = chrome.identity.getRedirectURL(), nonce = randomHex(16);
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({ client_id: PLAN_CFG.googleClientId, response_type: 'id_token', redirect_uri: redirect, scope: 'openid email profile', nonce, prompt: 'select_account' });
+  let back;
+  try { back = await chrome.identity.launchWebAuthFlow({ url, interactive: true }); }
+  catch (e) { return { ok: false, error: /did not approve|closed|cancel/i.test(String(e && e.message)) ? 'google_cancelled' : 'google_failed', detail: String(e && e.message) }; }
+  try {
+    const idt = new URLSearchParams((back || '').split('#')[1] || '').get('id_token');
+    if (!idt || b64uJson(idt.split('.')[1]).nonce !== nonce) throw new Error('bad');
+    const fb = await fbCall('accounts:signInWithIdp', { postBody: `id_token=${idt}&providerId=google.com`, requestUri: redirect, returnIdpCredential: true, returnSecureToken: true });
+    return await acceptLogin(fb.idToken);
+  } catch (e) { return { ok: false, error: /^[a-z_]+$/.test(e.message) && e.message !== 'bad' ? e.message : 'google_failed' }; }
+}
+
 // ---- plan: 'status' | 'trial' | 'redeem' ----------------------------------------------------------------
 // Returns { ok, error?, plan }. A refused or expired account token signs the browser out (the dashboard shows the sign-in screen).
 async function licenseSync(route, extra = {}) {

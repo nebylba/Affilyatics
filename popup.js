@@ -17,7 +17,7 @@ const SERIES = [
 let settings = { ...DEFAULTS };
 let cache = {}, status = {}, accounts = [], rawAccounts = [], license = {};
 let notif = { items: [], readAt: 0 };
-const view = { sel: null, stores: null, tags: null, storeOpen: false, tagOpen: false, locOpen: false, period: 'month', from: null, to: null, sub: null, metrics: new Set(['earnings', 'clicks', 'ordered']), group: null, cumulative: false, showSettings: false, ddOpen: false, perOpen: false, calOpen: false, notifOpen: false, notifFrom: 0, notifMsg: '', cal: { month: null, start: null, end: null, picking: false } };
+const view = { gmode: 'in', draft: { email: '', password: '' }, verify: null, gateInfo: '',  sel: null, stores: null, tags: null, storeOpen: false, tagOpen: false, locOpen: false, period: 'month', from: null, to: null, sub: null, metrics: new Set(['earnings', 'clicks', 'ordered']), group: null, cumulative: false, showSettings: false, ddOpen: false, perOpen: false, calOpen: false, notifOpen: false, notifFrom: 0, notifMsg: '', cal: { month: null, start: null, end: null, picking: false } };
 
 // ---- plan (Free / Pro): what the stored license answer allows (see plan.js) ----------------------------
 const isProNow = () => planOf(license) === 'pro';
@@ -777,16 +777,30 @@ function storesSettingsHTML() {
 function gateHTML() {
   const p = license.pending && Date.now() - license.pending.at < 10 * 60000 ? license.pending : null;
   const err = license.lastError && !p ? planMessage(license.lastError) : '';
-  return `<section class="panel state gate">
-    <h2>Sign in to use Affilyatics</h2>
-    <p class="muted">Create a free account with your e-mail or Google. It lets you start the 14-day Pro trial, keeps your plan on every computer and protects against abuse. <b>Your Amazon data never leaves your browser.</b></p>
-    ${view.gateMsg ? `<p class="small" style="color:var(--bad)">${esc(view.gateMsg)}</p>` : err ? `<p class="small" style="color:var(--bad)">${esc(err)}</p>` : ''}
-    ${p ? `<p>Finish in the tab that just opened. It shows the code <b class="gcode">${esc(p.code || '')}</b>: it must match.</p><div class="row"><button type="button" id="signinagain">Open the page again</button><button type="button" id="signincancel">Cancel</button></div><p class="muted small">Waiting for you to finish…</p>`
-        : `<div class="row"><button type="button" id="signin" class="primary" ${view.planBusy ? 'disabled' : ''}>Sign in or create an account</button></div>`}
-    <p class="muted small">By signing in you accept the <a href="${esc(PLAN_CFG.privacyUrl.replace('privacy/', 'terms/'))}" target="_blank" rel="noopener">Terms</a> and the <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>.</p>
-  </section>`;
+  const busy = view.planBusy ? 'disabled' : '';
+  const msg = view.gateMsg ? `<p class="small" style="color:var(--bad)">${esc(view.gateMsg)}</p>` : err ? `<p class="small" style="color:var(--bad)">${esc(err)}</p>` : view.gateInfo ? `<p class="small" style="color:var(--good)">${esc(view.gateInfo)}</p>` : '';
+  const legal = `<p class="muted small">By signing in you accept the <a href="${esc(PLAN_CFG.privacyUrl.replace('privacy/', 'terms/'))}" target="_blank" rel="noopener">Terms</a> and the <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>.</p>`;
+  const head = `<h2>Sign in to use Affilyatics</h2><p class="muted">Create a free account with your e-mail or Google. It lets you start the 14-day Pro trial, keeps your plan on every computer and protects against abuse. <b>Your Amazon data never leaves your browser.</b></p>`;
+  if (p) {     // fallback: sign-in on the website, waiting for it
+    return `<section class="panel state gate">${head}${msg}<p>Finish in the tab that just opened. It shows the code <b class="gcode">${esc(p.code || '')}</b>: it must match.</p><div class="row"><button type="button" id="signinagain">Open the page again</button><button type="button" id="signincancel">Cancel</button></div><p class="muted small">Waiting for you to finish…</p></section>`;
+  }
+  if (view.verify) {
+    return `<section class="panel state gate"><h2>Confirm your e-mail</h2>${msg}<p>We sent a link to <b>${esc(view.verify.email)}</b>. Open it to confirm your address (check the spam folder too), then press the button below.</p><div class="row"><button type="button" id="gverified" class="primary" ${busy}>I have verified my e-mail</button><button type="button" id="gresend" ${busy}>Send the e-mail again</button><button type="button" id="gother" class="linkbtn">Use another account</button></div></section>`;
+  }
+  const up = view.gmode === 'up', d = view.draft || {};
+  return `<section class="panel state gate">${head}${msg}
+    <button type="button" id="ggoogle" class="gbtn" ${busy}><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Continue with Google</button>
+    <div class="or"><span>or with your e-mail</span></div>
+    <div class="gtabs" role="tablist"><button type="button" id="gtab-in" class="${up ? '' : 'on'}">Sign in</button><button type="button" id="gtab-up" class="${up ? 'on' : ''}">Create account</button></div>
+    <div class="gform"><label>E-mail<input id="gmail" type="email" autocomplete="email" value="${esc(d.email || '')}" ${busy}></label>
+    <label>Password<input id="gpass" type="password" autocomplete="${up ? 'new-password' : 'current-password'}" placeholder="${up ? 'At least 8 characters' : ''}" value="${esc(d.password || '')}" ${busy}></label>
+    <button type="button" id="gsubmit" class="primary" ${busy}>${up ? 'Create my free account' : 'Sign in'}</button>
+    ${up ? '' : '<button type="button" id="gforgot" class="linkbtn">Forgot your password?</button>'}</div>
+    ${legal}
+    <p class="muted small"><button type="button" id="signin" class="linkbtn">Trouble signing in? Use the website instead</button></p></section>`;
 }
 // Footer of the sign-in screen (the dashboard itself has none).
+const listenerClick = (el) => { if (el && el.click) el.click(); };
 function footerHTML() {
   const home = PLAN_CFG.privacyUrl.replace('privacy/', ''), terms = home + 'terms/';
   let ver = ''; try { ver = chrome.runtime.getManifest().version; } catch (_) { /* not available in tests */ }
@@ -797,6 +811,7 @@ function footerHTML() {
     <p class="fsmall">© ${new Date().getFullYear()} EBLYN${ver ? ` · Version ${esc(ver)}` : ''}</p>
   </div>`;
 }
+document.addEventListener('input', (e) => { const t = e.target; if (t && t.id === 'gmail') view.draft.email = t.value; else if (t && t.id === 'gpass') view.draft.password = t.value; });
 let pollTimer = null;
 function ensureAuthPolling() {
   const want = !signedIn() && license.pending && Date.now() - license.pending.at < 10 * 60000;
@@ -1131,10 +1146,21 @@ async function saveSettings(patch, reload = true) {
 }
 
 async function gateAction(kind) {
-  view.gateMsg = ''; view.planBusy = true; render();
+  view.gateMsg = ''; view.gateInfo = ''; view.planBusy = true; render();
   let r; try { r = await chrome.runtime.sendMessage({ type: 'license', action: kind }); } catch (_) { r = { ok: false, error: 'network' }; }
   view.planBusy = false;
   if (r && !r.ok) view.gateMsg = planMessage(r.error);
+  const st = await chrome.storage.local.get('license'); license = st.license || license; render();
+}
+// sign in inside the popup: e-mail forms and Google (the worker talks to Firebase; Google opens Chrome's own sign-in window)
+async function gateAuth(msg) {
+  view.gateMsg = ''; view.gateInfo = ''; view.planBusy = true; render();
+  let r; try { r = await chrome.runtime.sendMessage({ type: 'license', ...msg }); } catch (_) { r = { ok: false, error: 'network' }; }
+  view.planBusy = false;
+  if (r && r.ok) { view.draft = { email: '', password: '' }; view.verify = null; if (r.info === 'reset_sent') view.gateInfo = 'If an account exists for that e-mail, a reset link is on its way.'; else if (r.info === 'verify_resent') view.gateInfo = 'Sent again. Check your inbox and spam folder.'; }
+  else if (r && r.error === 'verify_needed') { view.verify = { email: msg.email, password: msg.password }; if (msg.mode === 'in' && view.wasVerifying) view.gateMsg = 'Not verified yet. Open the link in the e-mail, then press the button again.'; }
+  else if (r && r.error !== 'google_cancelled') view.gateMsg = planMessage(r && r.error);
+  view.wasVerifying = !!view.verify;
   const st = await chrome.storage.local.get('license'); license = st.license || license; render();
 }
 // trial / redeem / check again: the background worker talks to the license server
@@ -1168,6 +1194,13 @@ document.addEventListener('click', async (e) => {
   if (q('[data-lock]')) { e.preventDefault(); const k = q('[data-lock]').dataset.lock; openUpsell(k === 'periods' ? 'periods' : k); return; }
   if (q('#planchip')) { closePops(); view.upsell = null; view.showSettings = true; render(); return; }
   if (q('#plantrial') || q('#plankeybtn') || q('#planrefresh')) { planAction(q('#plantrial') ? 'trial' : q('#plankeybtn') ? 'redeem' : 'refresh'); return; }
+  if (q('#ggoogle')) { gateAuth({ action: 'google' }); return; }
+  if (q('#gtab-in') || q('#gtab-up')) { view.gmode = q('#gtab-up') ? 'up' : 'in'; view.gateMsg = ''; render(); return; }
+  if (q('#gsubmit')) { const em = $('#gmail'), pw = $('#gpass'); gateAuth({ action: 'login', mode: view.gmode, email: ((em && em.value) || view.draft.email || '').trim(), password: (pw && pw.value) || view.draft.password || '' }); return; }
+  if (q('#gforgot')) { const em = $('#gmail'); gateAuth({ action: 'login', mode: 'reset', email: ((em && em.value) || view.draft.email || '').trim() }); return; }
+  if (q('#gverified')) { gateAuth({ action: 'login', mode: 'in', email: view.verify.email, password: view.verify.password }); return; }
+  if (q('#gresend')) { gateAuth({ action: 'login', mode: 'resend', email: view.verify.email, password: view.verify.password }); return; }
+  if (q('#gother')) { view.verify = null; view.gateMsg = ''; render(); return; }
   if (q('#signin') || q('#signinagain')) { gateAction('authstart'); return; }
   if (q('#signincancel')) { gateAction('authcancel'); return; }
   if (q('#signout')) { await chrome.runtime.sendMessage({ type: 'license', action: 'signout' }).catch(() => {}); view.planMsg = null; view.upsell = null; return; }
@@ -1319,7 +1352,8 @@ document.addEventListener('mouseover', (e) => {
 document.addEventListener('mouseleave', hideBd);
 
 if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('resize', () => { if (view.tour != null) drawTour(); });
-document.addEventListener('keydown', (e) => { if (view.tour != null) { if (e.key === 'Escape') { endTour(); return; } if (e.key === 'ArrowRight' || e.key === 'Enter') { view.tour += 1; render(); return; } if (e.key === 'ArrowLeft') { view.tour = Math.max(0, view.tour - 1); render(); return; } }
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target && (e.target.id === 'gmail' || e.target.id === 'gpass') && !view.planBusy) { e.preventDefault && e.preventDefault(); const b = $('#gsubmit'); if (b) listenerClick(b); return; }
+  if (view.tour != null) { if (e.key === 'Escape') { endTour(); return; } if (e.key === 'ArrowRight' || e.key === 'Enter') { view.tour += 1; render(); return; } if (e.key === 'ArrowLeft') { view.tour = Math.max(0, view.tour - 1); render(); return; } }
   if (e.key === 'Escape') { if (view.upsell) { view.upsell = null; render(); } else if (anyPopOpen()) { closePops(); render(); } } });
 
 chrome.storage.onChanged.addListener((ch) => {
