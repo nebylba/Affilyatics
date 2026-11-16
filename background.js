@@ -690,7 +690,9 @@ async function load(req) {
   const st = await chrome.storage.local.get(['settings', 'cache']);
   const settings = { ...DEFAULTS, ...(st.settings || {}) };
   const cache = st.cache || {};
-  const pro = planOf(await getLicense()) === 'pro';
+  const lic0 = await getLicense();
+  if (!accountOk(lic0)) { await setStatus({ loading: false, needsSignIn: true }); return; }          // signing in is mandatory, Free included
+  const pro = planOf(lic0) === 'pro';
   DUE_MIN = FEATURES[pro ? 'pro' : 'free'].autoRefreshMin - 0.5;
   notifyConf = { ...NOTIFY_DEFAULT, ...(settings.notify || {}) };
   if (!pro) { for (const k of Object.keys(notifyConf)) if (!FREE_NOTIFY.includes(k)) notifyConf[k] = false; }   // Free: orders, sign-outs, report problems; no desktop pop-ups
@@ -873,9 +875,9 @@ chrome.runtime.onMessage.addListener((msg, _s, send) => {
   if (msg?.type === 'load') { load(msg); send({ ok: true }); }
   else if (msg?.type === 'license') {      // trial / activate / deactivate / refresh, asked from Settings -> Plan
     const a = msg.action;
-    const run = a === 'trial' ? licenseSync('trial', { email: typeof msg.email === 'string' ? msg.email.trim().slice(0, 190) : undefined })
-      : a === 'activate' ? licenseSync('activate', { licenseKey: String(msg.key || '').trim().slice(0, 80) })
-      : a === 'deactivate' ? getLicense().then((l) => licenseSync('deactivate', { licenseKey: l.key || '' }))
+    const run = a === 'authstart' ? authStart() : a === 'authpoll' ? authPoll() : a === 'authcancel' ? authCancel() : a === 'signout' ? signOut()
+      : a === 'trial' ? licenseSync('trial')
+      : a === 'redeem' ? licenseSync('redeem', { licenseKey: String(msg.key || '').trim().slice(0, 80) })
       : licenseCheckIfDue(a !== 'check');            // 'check' (dashboard opened): only if the answer is older than 12 h; 'refresh' ("Check again"): always
     run.then((r) => send(r), () => send({ ok: false, error: 'network' }));
     return true;

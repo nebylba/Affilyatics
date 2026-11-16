@@ -21,6 +21,7 @@ const view = { sel: null, stores: null, tags: null, storeOpen: false, tagOpen: f
 
 // ---- plan (Free / Pro): what the stored license answer allows (see plan.js) ----------------------------
 const isProNow = () => planOf(license) === 'pro';
+const signedIn = () => accountOk(license);
 const isSepAccount = (a) => Object.values(SEPARATE_SITES).includes(a.base);
 const setAccounts = (raw) => { rawAccounts = raw || []; accounts = isProNow() ? rawAccounts : rawAccounts.filter((a) => !isSepAccount(a)); };
 const periodOk = (id) => isProNow() || FREE_PERIODS.includes(id);
@@ -771,6 +772,27 @@ function storesSettingsHTML() {
   }).join('');
   return `<p class="muted small" style="margin:0 0 10px">Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.</p><div class="sgrid">${cards}</div>`;
 }
+// ---- sign-in gate: an account (e-mail or Google) is required, Free included ---------------------------------------------
+// The "Sign in" button makes the worker open our sign-in web page; this screen then polls (every 2 s) until the page confirms.
+function gateHTML() {
+  const p = license.pending && Date.now() - license.pending.at < 10 * 60000 ? license.pending : null;
+  const err = license.lastError && !p ? planMessage(license.lastError) : '';
+  return `<section class="panel state gate">
+    <h2>Sign in to use Affilyatics</h2>
+    <p class="muted">Create a free account with your e-mail or Google. It lets you start the 14-day Pro trial, keeps your plan on every computer and protects against abuse. <b>Your Amazon data never leaves your browser.</b></p>
+    ${view.gateMsg ? `<p class="small" style="color:var(--bad)">${esc(view.gateMsg)}</p>` : err ? `<p class="small" style="color:var(--bad)">${esc(err)}</p>` : ''}
+    ${p ? `<p>Finish in the tab that just opened. It shows the code <b class="gcode">${esc(p.code || '')}</b>: it must match.</p><div class="row"><button type="button" id="signinagain">Open the page again</button><button type="button" id="signincancel">Cancel</button></div><p class="muted small">Waiting for you to finish…</p>`
+        : `<div class="row"><button type="button" id="signin" class="primary" ${view.planBusy ? 'disabled' : ''}>Sign in or create an account</button></div>`}
+    <p class="muted small">By signing in you accept the <a href="${esc(PLAN_CFG.privacyUrl.replace('privacy/', 'terms/'))}" target="_blank" rel="noopener">Terms</a> and the <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>.</p>
+  </section>`;
+}
+let pollTimer = null;
+function ensureAuthPolling() {
+  const want = !signedIn() && license.pending && Date.now() - license.pending.at < 10 * 60000;
+  if (want && !pollTimer) pollTimer = setInterval(async () => { try { await chrome.runtime.sendMessage({ type: 'license', action: 'authpoll' }); } catch (_) { /* worker asleep: next tick */ } }, 2000);
+  else if (!want && pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
 // ---- first-run tour: a short guided walk over the real controls (Settings -> "Take the tour" runs it again) --------------
 // view.tour = index of the step on screen, or null. Steps whose target is not on screen are skipped.
 const TOUR = [
@@ -804,7 +826,7 @@ function drawTour() {
 }
 // the very first time (and only when the dashboard is really on screen): offer the tour
 function maybeStartTour() {
-  if (settings.tourDone || view.tourShown || view.tour != null || view.showSettings || status.signedOut || !accounts.length || isLoading()) return;
+  if (!signedIn() || settings.tourDone || view.tourShown || view.tour != null || view.showSettings || status.signedOut || !accounts.length || isLoading()) return;
   view.tourShown = true; view.tour = 0;
 }
 
@@ -821,14 +843,12 @@ function planCardHTML() {
   const busy = view.planBusy;
   const adds = ['Every period and custom date ranges', 'Tag filters with daily clicks per tag', 'Tracking IDs, categories and products', 'Creator Rewards tiers and enrollment alerts', 'Desktop alerts and all alert types', 'Other Associates sites', 'Report-gap protection', 'Updates every 5 minutes (Free: 30)'];
   const trialBtn = !pro && trialAvailable() ? `<button type="button" id="plantrial" class="primary" ${busy ? 'disabled' : ''}>Start my ${PLAN_CFG.trialDays}-day free trial</button>` : '';
-  const keyRow = paid && license.key
-    ? `<p class="muted small" style="margin:8px 0 0">License key <b>${esc(license.key.slice(0, 9))}…</b> is active in this browser. <button type="button" class="linkbtn" id="planremove">Remove it from this browser</button></p>`
-    : `<div class="plankey"><input id="plankey" type="text" placeholder="Have a license key? Paste it here" autocomplete="off" spellcheck="false" aria-label="License key"><button type="button" id="plankeybtn" ${busy ? 'disabled' : ''}>Activate</button></div>`;
-  const email = !pro && trialAvailable() ? `<input id="planemail" type="email" placeholder="E-mail (optional): trial reminders and help if you lose access" autocomplete="email" aria-label="E-mail, optional">` : '';
+  const keyRow = paid ? '' : `<div class="plankey"><input id="plankey" type="text" placeholder="Bought a license? Paste its key here (or sign in with the e-mail you bought with)" autocomplete="off" spellcheck="false" aria-label="License key"><button type="button" id="plankeybtn" ${busy ? 'disabled' : ''}>Redeem</button></div>`;
+  const acct = `<div class="acctrow">Signed in as <b>${esc((license.account && license.account.email) || 'your account')}</b> <button type="button" class="linkbtn" id="signout">Sign out</button></div>`;
   return `<div class="plancard ${pro ? 'pro' : 'free'}">
     <div class="planhead"><span class="planname">${esc(w.title)}</span><span class="muted">${esc(w.line)}</span></div>
+    ${acct}
     ${pro ? '' : `<ul class="planlist">${adds.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>`}
-    ${email}
     <div class="planbtns">${trialBtn}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${pro && paid ? '' : trialBtn ? '' : 'class="primary"'}>${pro ? 'Manage plan' : 'See plans'}</button><button type="button" id="planrefresh" ${busy ? 'disabled' : ''} title="Ask the license server again">Check again</button></div>
     ${view.planMsg ? `<p class="small" style="color:${view.planMsg.err ? 'var(--bad)' : 'var(--text)'};margin:8px 0 0">${esc(view.planMsg.text)}</p>` : ''}
     ${keyRow}
@@ -984,6 +1004,7 @@ function heldDiagnostics(dayRows) {
 }
 
 function mainHTML() {
+  if (!signedIn()) return gateHTML();
   if (status.signedOut) return signedOutHTML();
   const dayRows = collect('day');
   const cRows = chartRows();
@@ -1025,6 +1046,7 @@ function restoreView(v) {
 }
 
 function render() {
+  if (!signedIn()) { view.showSettings = false; view.tour = null; }
   pruneTags();
   persistView();
   const loading = isLoading();
@@ -1035,7 +1057,7 @@ function render() {
     : status.updatedAt ? `Updated ${new Date(status.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
   const stamps = amazonStamps();
   $('#status').title = 'Checked automatically; only data that is due is re-downloaded.' + (stamps.length ? '\nAmazon data last updated: ' + stamps.join(' · ') : '');
-  const chip = $('#planchip'); if (chip) { const w = planWords(); chip.textContent = w.chip; chip.className = 'planchip ' + (isProNow() ? 'pro' : 'free'); chip.title = w.line; }
+  const chip = $('#planchip'); if (chip) { const w = planWords(); chip.textContent = w.chip; chip.className = 'planchip ' + (isProNow() ? 'pro' : 'free'); chip.title = w.line; chip.hidden = !signedIn(); }
   const up = $('#upsell'); if (up) up.innerHTML = view.upsell ? upsellHTML() : '';
   const th = $('#theme'); if (th) { th.innerHTML = isDark() ? ICON_SUN : ICON_MOON; th.title = isDark() ? 'Switch to light mode' : 'Switch to dark mode'; }
   const gear = $('#gear');
@@ -1048,12 +1070,12 @@ function render() {
   $('#bell').title = unread ? `${unread} new notification${unread > 1 ? 's' : ''}` : 'Notifications';
   $('#bell').setAttribute('aria-expanded', String(view.notifOpen));
   $('#notifpanel').innerHTML = view.notifOpen ? notifPanelHTML() : '';
-  const sf = $('#storefilter'); if (sf) sf.innerHTML = view.showSettings || status.signedOut ? '' : storeFilterHTML();
-  $('#headtotal').innerHTML = view.showSettings || status.signedOut ? '' : totalCardHTML(tagAgg() || collect('day'));
+  const sf = $('#storefilter'); if (sf) sf.innerHTML = view.showSettings || status.signedOut || !signedIn() ? '' : storeFilterHTML();
+  $('#headtotal').innerHTML = view.showSettings || status.signedOut || !signedIn() ? '' : totalCardHTML(tagAgg() || collect('day'));
   maybeStartTour();
   const main = $('#main');
   main.innerHTML = view.showSettings ? settingsHTML() : mainHTML();
-  if (!view.showSettings && !status.signedOut) {
+  if (!view.showSettings && !status.signedOut && signedIn()) {
     const dayRows = chartRows();
     if (dayRows.length) {
       const cur = primaryCurrency(dayRows);
@@ -1061,6 +1083,7 @@ function render() {
       wireChart(pts, chartSeries(), cur, group);
     }
   }
+  ensureAuthPolling();
   drawTour();
 }
 
@@ -1095,18 +1118,24 @@ async function saveSettings(patch, reload = true) {
   if (reload) requestLoad();
 }
 
-// trial / activate / deactivate / check again: the background worker talks to the license server
+async function gateAction(kind) {
+  view.gateMsg = ''; view.planBusy = true; render();
+  let r; try { r = await chrome.runtime.sendMessage({ type: 'license', action: kind }); } catch (_) { r = { ok: false, error: 'network' }; }
+  view.planBusy = false;
+  if (r && !r.ok) view.gateMsg = planMessage(r.error);
+  const st = await chrome.storage.local.get('license'); license = st.license || license; render();
+}
+// trial / redeem / check again: the background worker talks to the license server
 async function planAction(kind) {
   if (view.planBusy) return;
   const msg = { type: 'license', action: kind };
-  if (kind === 'trial') { const em = $('#planemail'); if (em && em.value.trim()) msg.email = em.value.trim(); }
-  if (kind === 'activate') { const k = $('#plankey'); msg.key = k ? k.value.trim() : ''; if (!msg.key) { view.planMsg = { err: true, text: 'Paste your license key first.' }; render(); return; } }
+  if (kind === 'redeem') { const k = $('#plankey'); msg.key = k ? k.value.trim() : ''; if (!msg.key) { view.planMsg = { err: true, text: 'Paste your license key first.' }; render(); return; } }
   view.planBusy = true; view.planMsg = { text: kind === 'refresh' ? 'Checking…' : 'Working…' }; render();
   let r; try { r = await chrome.runtime.sendMessage(msg); } catch (_) { r = { ok: false, error: 'network' }; }
   view.planBusy = false;
   if (r && r.ok) {
-    view.planMsg = { text: kind === 'trial' ? `Your ${PLAN_CFG.trialDays}-day Pro trial has started. Enjoy!` : kind === 'activate' ? 'License activated. Thank you!' : kind === 'deactivate' ? 'Removed from this browser.' : 'Plan is up to date.' };
-    if (kind === 'trial' || kind === 'activate') view.upsell = null;
+    view.planMsg = { text: kind === 'trial' ? `Your ${PLAN_CFG.trialDays}-day Pro trial has started. Enjoy!` : kind === 'redeem' ? 'License redeemed on your account. Thank you!' : 'Plan is up to date.' };
+    if (kind === 'trial' || kind === 'redeem') view.upsell = null;
     const st = await chrome.storage.local.get('license'); license = st.license || license; setAccounts(rawAccounts); clampView(); requestLoad(true);
   } else view.planMsg = { err: true, text: planMessage(r && r.error) };
   render();
@@ -1126,7 +1155,10 @@ document.addEventListener('click', async (e) => {
   if (t.classList && t.classList.contains('modalbg') || q('[data-upclose]')) { view.upsell = null; view.planMsg = null; render(); return; }
   if (q('[data-lock]')) { e.preventDefault(); const k = q('[data-lock]').dataset.lock; openUpsell(k === 'periods' ? 'periods' : k); return; }
   if (q('#planchip')) { closePops(); view.upsell = null; view.showSettings = true; render(); return; }
-  if (q('#plantrial') || q('#plankeybtn') || q('#planremove') || q('#planrefresh')) { planAction(q('#plantrial') ? 'trial' : q('#plankeybtn') ? 'activate' : q('#planremove') ? 'deactivate' : 'refresh'); return; }
+  if (q('#plantrial') || q('#plankeybtn') || q('#planrefresh')) { planAction(q('#plantrial') ? 'trial' : q('#plankeybtn') ? 'redeem' : 'refresh'); return; }
+  if (q('#signin') || q('#signinagain')) { gateAction('authstart'); return; }
+  if (q('#signincancel')) { gateAction('authcancel'); return; }
+  if (q('#signout')) { await chrome.runtime.sendMessage({ type: 'license', action: 'signout' }).catch(() => {}); view.planMsg = null; view.upsell = null; return; }
   if (q('#dismisstrial')) { saveSettings({ dismissTrialEnded: true }, false); render(); return; }
   if (q('#bell')) {
     const open = !view.notifOpen;
@@ -1282,7 +1314,7 @@ chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
   if (ch.cache) { cache = ch.cache.newValue || {}; dirty = true; }
   if (ch.status) { status = ch.status.newValue || {}; dirty = true; }
-  if (ch.license) { license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); dirty = true; }
+  if (ch.license) { const was = signedIn(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } dirty = true; }
   if (ch.accounts) { setAccounts(ch.accounts.newValue); dirty = true; }
   if (ch.notif) {
     notif = ch.notif.newValue || { items: [], readAt: 0 };
@@ -1305,7 +1337,7 @@ chrome.storage.onChanged.addListener((ch) => {
     restoreView(st.viewState);
     clampView();
     render();
-    requestLoad();
+    if (signedIn()) requestLoad();
     chrome.runtime.sendMessage({ type: 'license', action: 'check' }).catch(() => {});   // the worker only asks the server when the answer is older than 12 hours
   } catch (e) {
     console.error('[affilyatics] startup failed', e);

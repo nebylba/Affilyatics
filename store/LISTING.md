@@ -41,7 +41,10 @@ Free: one Associates account with all its stores and countries, total income, ch
 yesterday, this month and last month, alerts for new orders / sign-outs / report problems, updates every 30 minutes.
 Pro: every period and custom date ranges, tag filters, tracking ID / category / product tables, Creator Rewards tiers and
 enrollment alerts, all alert types and desktop pop-ups, other Associates sites, report-gap protection, updates every 5 minutes.
-Try Pro free for 14 days, no credit card required. Refund of the current month in full, no questions asked.
+A free account (e-mail or Google) is required. Try Pro free for 14 days, no credit card required. Refund of the current month in full, no questions asked.
+
+ACCOUNT
+You sign in once with your e-mail or Google (the sign-in page is on our website and handled by Google Firebase). The extension does not work without an account, Free plan included.
 
 PRIVACY
 Your earnings, stores and tags stay in your browser. They are never sent to us. The only thing the extension sends to our
@@ -62,9 +65,9 @@ Show the user's own Amazon Associates earnings and reports in one dashboard, wit
 - **Remote code:** none. All code is in the package.
 
 ## Privacy practices tab (data disclosure)
-- Collects: **Personally identifiable information** (only an e-mail address, optional, when starting a trial), **Authentication information** (the license key the user enters), **Website content / user activity**: none leaves the device (Amazon report data is processed locally and never transmitted to the developer).
+- Collects: **Personally identifiable information** (e-mail address, name if Google sign-in, a Firebase user id: needed because an account is required), **Authentication information** (sign-in is done on the developer's web page with Google Firebase; the extension stores only a token made by the developer's server; license key if entered), **Website content / user activity**: none leaves the device (Amazon report data is processed locally and never transmitted to the developer).
 - Certify: data is not sold; not used for purposes unrelated to the item's single purpose; not used for creditworthiness or lending.
-- Data sent to the developer's license server: random installation id, extension version, plan, license key (if entered), e-mail (optional), anonymous counters (opt-in, off by default).
+- Data sent to the developer's server: account token, random installation id, extension version, plan, license key (if entered), anonymous counters (opt-in, off by default). Account creation (e-mail or Google) happens on https://eblyn.com/Affilyatics/signin/ and is processed by Google Firebase.
 
 ## Images
 - `screenshot-1-dashboard-dark.png`, `screenshot-2-dashboard-light.png`, `screenshot-3-free-plan.png` (1280x800)

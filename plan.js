@@ -10,11 +10,15 @@ const PLAN_CFG = {
   api: 'https://eblyn.com/Affilyatics/api/v1',
   // Public half of the signing key (base64 SPKI). The matching private key lives only on the server (php _lib/make-keys.php).
   publicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxceWprn33HVNKGLIxsVn/HMsuSwaGcnIINdYR2YDRZai/j00oxzirfY6fKuBq8TlTu+1P8zOGaj/f3OpCNMp90ONaIRBCgh6tRmT8jay/RErYebX4+j5zmnIjm3pcWvdLgWdnfV5PtsO/s9jD0GkuZ5CqIdBAgSNaMAY3cK4hGKe9ljX+avyIRE9clie3PbuavM2q6KlHnPSQn+/R8u+LmbD01o9q0ZOFW2kOOl9rM7zVO9aznx7s2/7mpZeYE9rJ6OFj1i9yqW7za6JIhZZnWD/nOSuK9MMbm0QnY3XHVEgEE7xUl4tP3ejzdR8261V9n/B8WNMZ4FVHXu2SFe8fQIDAQAB',
+  signinUrl: 'https://eblyn.com/Affilyatics/signin/',      // the page where people sign in (Firebase: e-mail or Google)
   pricingUrl: 'https://eblyn.com/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
   privacyUrl: 'https://eblyn.com/Affilyatics/privacy/',
   trialDays: 14,
   recheckHours: 12
 };
+
+// Signed in? (an account token that the server made for this browser and has not run out). Everything needs it, Free included.
+const accountOk = (lic, now = Date.now()) => !!(lic && lic.account && lic.account.token && now < lic.account.exp);
 
 const FREE_PERIODS = ['today', 'yesterday', 'month', 'lastMonth'];
 const FREE_NOTIFY = ['orders', 'signedout', 'dataissue'];
@@ -52,7 +56,11 @@ const PLAN_MESSAGES = {
   invalid_key: 'That license key was not recognised. Check it and try again.',
   license_ended: 'That license has ended.',
   refunded: 'That license was refunded and no longer works.',
-  seats_full: 'That license is already used in the maximum number of browsers. Remove one from the license first (contact us).',
+  license_other_account: 'That license key already belongs to another account. Write to us if it is yours.',
+  unauthorized: 'Please sign in again.',
+  blocked: 'This account is blocked. Please contact support.',
+  sign_in_expired: 'The sign-in took too long. Please try again.',
+  email_unverified: 'Your e-mail is not verified yet.',
   rate_limited: 'Too many tries. Please wait a little and try again.',
   network: 'Could not reach the license server. Check your connection and try again.',
   bad_signature: 'The answer from the license server could not be verified.',

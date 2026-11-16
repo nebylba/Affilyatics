@@ -7,8 +7,13 @@
 - `popup.js`: `isProNow`, `setAccounts`, `periodOk`, `tabOk`, `clampView`, `openUpsell`, `planCardHTML`, `upsellHTML`, `planBannerHTML`, `planAction`; locked controls carry `data-lock="<feature>"`.
 - Backend: `eblyn.com/Affilyatics/_lib` (`lib.php`, `schema.sql`, `setup.php`, `cleanup.php`, `make-keys.php`), `api/v1/index.php`, `admin/*`.
 
+## Accounts (v5, mandatory sign-in)
+Every feature needs a signed-in account, Free included: `accountOk(license)` (plan.js) is false -> the dashboard shows `gateHTML()`, `load()` in the worker returns at once, and the tour does not start.
+Sign-in is a hand-off through our hosted page `signin/` (Firebase Web SDK: e-mail/password with verified e-mail, or Google): `authStart()` (license.js) makes a nonce, `POST auth-start`, opens `signinUrl?nonce=`; the page calls `POST auth-complete {nonce, idToken}`; the server verifies the Firebase ID token (RS256, Google's public certs, aud/iss = project id, no service account), upserts the user, and the extension collects `{accountToken}` with `authPoll()` (popup polls every 2 s). The account token is OUR RSA-signed token bound to the installation id, valid 90 days and renewed at every plan check. `unauthorized` / `blocked` answers sign the browser out (`license` is reset to `{installId, lastError}`).
+Licenses belong to accounts: a purchase with the account's verified e-mail is linked automatically, a pasted key is redeemed (`POST redeem`). Trials are per account/e-mail/browser.
+
 ## Storage
-`chrome.storage.local.license = { installId, key?, email?, ent, checkedAt, lastError?, lastTryAt? }` where `ent` is the verified server answer:
+`chrome.storage.local.license = { installId, account: { token, exp, email, name }, pending?: { nonce, at, code }, ent, checkedAt, lastError?, lastTryAt? }` where `ent` is the verified server answer:
 `{ plan: 'free'|'pro', source: 'trial'|'license'|'comp'|null, trialEndsAt, expiresAt, validUntil, cycle, cancelled, reason, installId, issuedAt }`.
 `planOf` returns `pro` only while `now < validUntil` (server contact grace, 7 days) and the trial / license end date has not passed.
 Settings: `settings.shareUsage` (opt-in counters), `settings.dismissTrialEnded`.
@@ -16,10 +21,12 @@ Settings: `settings.shareUsage` (opt-in counters), `settings.dismissTrialEnded`.
 ## API (POST JSON, `${PLAN_CFG.api}/<route>`)
 | route | body | effect |
 |---|---|---|
-| `status` | installId, version, licenseKey?, usage? | signed entitlement; records a check-in |
-| `trial` | installId, version, email? | starts the 14-day trial (one per install, one per e-mail) |
-| `activate` | installId, version, licenseKey | binds a key to this install (seats) |
-| `deactivate` | installId, licenseKey | frees the seat |
+| `auth-start` | installId, nonce | registers a pending sign-in (10 min) |
+| `auth-complete` | nonce, idToken (Firebase) | called by the sign-in page; verifies the token |
+| `auth-poll` | installId, nonce | the extension collects its account token (once) |
+| `status` | installId, accountToken, version, usage? | signed entitlement + renewed account token |
+| `trial` | installId, accountToken, version | starts the 14-day trial (one per account / e-mail / browser) |
+| `redeem` | installId, accountToken, licenseKey | binds a key to the account |
 | `freemius` | Freemius event, `X-Signature` = HMAC-SHA256(body, secret key) | creates/updates licenses and payments |
 
 Answer: `{ ok, error?, payload, sig }`; `payload` is the JSON text the server signed (RSA, private key on the server), `sig` is base64.
