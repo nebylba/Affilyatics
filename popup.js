@@ -906,7 +906,7 @@ function upsellHTML() {
   </div></div>`;
 }
 function planBannerHTML() {
-  if (view.justUnlocked && Date.now() - view.justUnlocked < 30000) return '<div class="banner plan" role="status"><span><b>Pro is now active.</b> Every Pro feature is unlocked. Enjoy!</span></div>';
+  if (view.justUnlocked && Date.now() - view.justUnlocked < 15000) return '<div class="banner plan good" role="status"><span>🎉 <b>Congratulations!</b> Pro plan is now active and all features are unlocked. Enjoy! ✨</span><button type="button" id="dismissunlock" class="bclose" aria-label="Close" title="Close">✕</button></div>';
   const i = planInfo(license);
   if (i.plan === 'pro' && i.source === 'trial' && i.daysLeft <= 3) return `<div class="banner plan" role="status"><span>Your Pro trial ends in ${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'}.</span><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">Keep Pro</button></div>`;
   if (i.plan === 'free' && i.trialEnded && !settings.dismissTrialEnded) return `<div class="banner plan" role="status"><span>Your Pro trial has ended. You are on Free now and keep all your data.</span><span class="hbtns"><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">See plans</button><button type="button" id="dismisstrial" aria-label="Dismiss">✕</button></span></div>`;
@@ -1218,6 +1218,7 @@ document.addEventListener('click', async (e) => {
   if (q('#signin') || q('#signinagain')) { gateAction('authstart'); return; }
   if (q('#signincancel')) { gateAction('authcancel'); return; }
   if (q('#signout')) { await chrome.runtime.sendMessage({ type: 'license', action: 'signout' }).catch(() => {}); view.planMsg = null; view.upsell = null; return; }
+  if (q('#dismissunlock')) { view.justUnlocked = 0; render(); return; }
   if (q('#dismisstrial')) { saveSettings({ dismissTrialEnded: true }, false); render(); return; }
   if (q('#bell')) {
     const open = !view.notifOpen;
@@ -1374,7 +1375,7 @@ chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
   if (ch.cache) { cache = ch.cache.newValue || {}; dirty = true; }
   if (ch.status) { status = ch.status.newValue || {}; dirty = true; }
-  if (ch.license) { const was = signedIn(), wasPro = isProNow(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } if (!wasPro && isProNow()) { view.justUnlocked = Date.now(); view.fastUntil = 0; requestLoad(true); } dirty = true; }
+  if (ch.license) { const was = signedIn(), wasPro = isProNow(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } if (!wasPro && isProNow()) { view.justUnlocked = Date.now(); view.fastUntil = 0; requestLoad(true); if (typeof setTimeout !== 'undefined') setTimeout(() => { if (view.justUnlocked && Date.now() - view.justUnlocked >= 14900) { view.justUnlocked = 0; render(); } }, 15000); } dirty = true; }
   if (ch.accounts) { setAccounts(ch.accounts.newValue); dirty = true; }
   if (ch.notif) {
     notif = ch.notif.newValue || { items: [], readAt: 0 };
