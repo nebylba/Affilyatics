@@ -9,8 +9,8 @@
 
 ## Accounts (v5, mandatory sign-in)
 Every feature needs a signed-in account, Free included: `accountOk(license)` (plan.js) is false -> the dashboard shows `gateHTML()`, `load()` in the worker returns at once, and the tour does not start.
-Sign-in is a hand-off through our hosted page `signin/` (Firebase Web SDK: e-mail/password with verified e-mail, or Google): `authStart()` (license.js) makes a nonce, `POST auth-start`, opens `signinUrl?nonce=`; the page calls `POST auth-complete {nonce, idToken}`; the server verifies the Firebase ID token (RS256, Google's public certs, aud/iss = project id, no service account), upserts the user, and the extension collects `{accountToken}` with `authPoll()` (popup polls every 2 s). The account token is OUR RSA-signed token bound to the installation id, valid 90 days and renewed at every plan check. `unauthorized` / `blocked` answers sign the browser out (`license` is reset to `{installId, lastError}`).
-Licenses belong to accounts: a purchase with the account's verified e-mail is linked automatically, a pasted key is redeemed (`POST redeem`). Trials are per account/e-mail/browser.
+Sign-in is a hand-off through our hosted page `signin/` (Firebase Web SDK: email/password with verified email, or Google): `authStart()` (license.js) makes a nonce, `POST auth-start`, opens `signinUrl?nonce=`; the page calls `POST auth-complete {nonce, idToken}`; the server verifies the Firebase ID token (RS256, Google's public certs, aud/iss = project id, no service account), upserts the user, and the extension collects `{accountToken}` with `authPoll()` (popup polls every 2 s). The account token is OUR RSA-signed token bound to the installation id, valid 90 days and renewed at every plan check. `unauthorized` / `blocked` answers sign the browser out (`license` is reset to `{installId, lastError}`).
+Licenses belong to accounts: a purchase with the account's verified email is linked automatically, a pasted key is redeemed (`POST redeem`). Trials are per account/email/browser.
 
 ## Storage
 `chrome.storage.local.license = { installId, account: { token, exp, email, name }, pending?: { nonce, at, code }, ent, checkedAt, lastError?, lastTryAt? }` where `ent` is the verified server answer:
@@ -25,7 +25,7 @@ Settings: `settings.shareUsage` (opt-in counters), `settings.dismissTrialEnded`.
 | `auth-complete` | nonce, idToken (Firebase) | called by the sign-in page; verifies the token |
 | `auth-poll` | installId, nonce | the extension collects its account token (once) |
 | `status` | installId, accountToken, version, usage? | signed entitlement + renewed account token |
-| `trial` | installId, accountToken, version | starts the 14-day trial (one per account / e-mail / browser) |
+| `trial` | installId, accountToken, version | starts the 14-day trial (one per account / email / browser) |
 | `redeem` | installId, accountToken, licenseKey | binds a key to the account |
 | `freemius` | Freemius event, `X-Signature` = HMAC-SHA256(body, secret key) | creates/updates licenses and payments |
 

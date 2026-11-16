@@ -14,7 +14,7 @@ const PLAN_CFG = {
   firebase: { apiKey: 'AIzaSyBAkaKazUQKafNcPhzwua22S1ePH3UHe90' },
   // OAuth "Web client" id used for Google sign-in inside the extension (Google Cloud -> Credentials; see docs/Firebase-setup.md). Empty = Google button explains it is not set up.
   googleClientId: '554282385001-me9ld2pv5ebpullbei6oe2rndbo2gol5.apps.googleusercontent.com',
-  signinUrl: 'http://eblyn.local/Affilyatics/signin/',      // the page where people sign in (Firebase: e-mail or Google)
+  signinUrl: 'http://eblyn.local/Affilyatics/signin/',      // the page where people sign in (Firebase: email or Google)
   pricingUrl: 'http://eblyn.local/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
   privacyUrl: 'http://eblyn.local/Affilyatics/privacy/',
   contactEmail: 'contact@eblyn.com',                       // support address shown in the footer of the sign-in screen
@@ -57,30 +57,30 @@ function planInfo(lic, now = Date.now()) {
 
 const PLAN_MESSAGES = {
   trial_used: 'This browser already used its free trial.',
-  trial_used_email: 'That e-mail address already used a free trial.',
+  trial_used_email: 'That email address already used a free trial.',
   invalid_key: 'That license key was not recognised. Check it and try again.',
   license_ended: 'That license has ended.',
   refunded: 'That license was refunded and no longer works.',
   license_other_account: 'That license key already belongs to another account. Write to us if it is yours.',
   unauthorized: 'Please sign in again.',
-  wrong_credentials: 'Wrong e-mail or password.',
-  email_exists: 'There is already an account with this e-mail. Sign in instead.',
-  invalid_email: 'That e-mail address does not look right.',
+  wrong_credentials: 'Wrong email or password.',
+  email_exists: 'There is already an account with this email. Sign in instead.',
+  invalid_email: 'That email address does not look right.',
   weak_password: 'Choose a password of at least 8 characters.',
   too_many_attempts: 'Too many tries. Wait a few minutes and try again.',
   provider_disabled: 'This sign-in method is not enabled yet.',
   user_disabled: 'This account is disabled. Please contact support.',
   google_cancelled: 'The Google window was closed before finishing.',
-  google_failed: 'Google sign-in did not complete. Try again, or use your e-mail.',
-  google_not_set_up: 'Google sign-in is not set up yet. Use your e-mail for now.',
+  google_failed: 'Google sign-in did not complete. Try again, or use your email.',
+  google_not_set_up: 'Google sign-in is not set up yet. Use your email for now.',
   not_configured: 'Sign-in is not configured yet.',
   firebase_error: 'The sign-in service had a problem. Please try again.',
   bad_token: 'We could not verify your sign-in. Please try again.',
   wrong_project: 'Sign-in is misconfigured on our side. Please contact support.',
-  no_email: 'Your account has no e-mail address.',
+  no_email: 'Your account has no email address.',
   blocked: 'This account is blocked. Please contact support.',
   sign_in_expired: 'The sign-in took too long. Please try again.',
-  email_unverified: 'Your e-mail is not verified yet.',
+  email_unverified: 'Your email is not verified yet.',
   rate_limited: 'Too many tries. Please wait a little and try again.',
   network: 'Could not reach the license server. Check your connection and try again.',
   bad_signature: 'The answer from the license server could not be verified.',

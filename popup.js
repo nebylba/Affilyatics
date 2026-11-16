@@ -802,7 +802,7 @@ function storesSettingsHTML() {
   const note = isProNow() ? 'Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.' : `The Free plan includes <b>1 store</b>: your main store, the first one Amazon lists.${hid.length ? ` Your other ${hid.length} store${hid.length > 1 ? 's are' : ' is'} included in Pro and Lifetime.` : ''}`;
   return `<p class="muted small" style="margin:0 0 10px">${note}</p><div class="sgrid">${cards}${locked}</div>`;
 }
-// ---- sign-in gate: an account (e-mail or Google) is required, Free included ---------------------------------------------
+// ---- sign-in gate: an account (email or Google) is required, Free included ---------------------------------------------
 // The "Sign in" button makes the worker open our sign-in web page; this screen then polls (every 2 s) until the page confirms.
 function gateHTML() {
   const p = license.pending && Date.now() - license.pending.at < 10 * 60000 ? license.pending : null;
@@ -810,19 +810,19 @@ function gateHTML() {
   const busy = view.planBusy ? 'disabled' : '';
   const msg = view.gateMsg ? `<p class="small" style="color:var(--bad)">${esc(view.gateMsg)}</p>` : err ? `<p class="small" style="color:var(--bad)">${esc(err)}</p>` : view.gateInfo ? `<p class="small" style="color:var(--good)">${esc(view.gateInfo)}</p>` : '';
   const legal = `<p class="muted small">By signing in you accept the <a href="${esc(PLAN_CFG.privacyUrl.replace('privacy/', 'terms/'))}" target="_blank" rel="noopener">Terms</a> and the <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>.</p>`;
-  const head = `<h2>Sign in to use Affilyatics</h2><p class="muted">Create a free account with your e-mail or Google. It lets you start the 14-day Pro trial, keeps your plan on every computer and protects against abuse. <b>Your Amazon data never leaves your browser.</b></p>`;
+  const head = `<h2>Sign in to use Affilyatics</h2><p class="muted">Create a free account with your email or Google. It lets you start the 14-day Pro trial, keeps your plan on every computer and protects against abuse. <b>Your Amazon data never leaves your browser.</b></p>`;
   if (p) {     // fallback: sign-in on the website, waiting for it
     return `<section class="panel state gate">${head}${msg}<p>Finish in the tab that just opened. It shows the code <b class="gcode">${esc(p.code || '')}</b>: it must match.</p><div class="row"><button type="button" id="signinagain">Open the page again</button><button type="button" id="signincancel">Cancel</button></div><p class="muted small">Waiting for you to finish…</p></section>`;
   }
   if (view.verify) {
-    return `<section class="panel state gate"><h2>Confirm your e-mail</h2>${msg}<p>We sent a link to <b>${esc(view.verify.email)}</b>. Open it to confirm your address (check the spam folder too), then press the button below.</p><div class="row"><button type="button" id="gverified" class="primary" ${busy}>I have verified my e-mail</button><button type="button" id="gresend" ${busy}>Send the e-mail again</button><button type="button" id="gother" class="linkbtn">Use another account</button></div></section>`;
+    return `<section class="panel state gate"><h2>Confirm your email</h2>${msg}<p>We sent a link to <b>${esc(view.verify.email)}</b>. Open it to confirm your address (check the spam folder too), then press the button below.</p><div class="row"><button type="button" id="gverified" class="primary" ${busy}>I have verified my email</button><button type="button" id="gresend" ${busy}>Send the email again</button><button type="button" id="gother" class="linkbtn">Use another account</button></div></section>`;
   }
   const up = view.gmode === 'up', d = view.draft || {};
   return `<section class="panel state gate">${head}${msg}
     <button type="button" id="ggoogle" class="gbtn" ${busy}><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Continue with Google</button>
-    <div class="or"><span>or with your e-mail</span></div>
+    <div class="or"><span>or with your email</span></div>
     <div class="gtabs" role="tablist"><button type="button" id="gtab-in" class="${up ? '' : 'on'}">Sign in</button><button type="button" id="gtab-up" class="${up ? 'on' : ''}">Create account</button></div>
-    <div class="gform"><label>E-mail<input id="gmail" type="email" autocomplete="email" value="${esc(d.email || '')}" ${busy}></label>
+    <div class="gform"><label>Email<input id="gmail" type="email" autocomplete="email" value="${esc(d.email || '')}" ${busy}></label>
     <label>Password<input id="gpass" type="password" autocomplete="${up ? 'new-password' : 'current-password'}" placeholder="${up ? 'At least 8 characters' : ''}" value="${esc(d.password || '')}" ${busy}></label>
     <button type="button" id="gsubmit" class="primary" ${busy}>${up ? 'Create my free account' : 'Sign in'}</button>
     ${up ? '' : '<button type="button" id="gforgot" class="linkbtn">Forgot your password?</button>'}</div>
@@ -912,7 +912,7 @@ function planCardHTML() {
   const busy = view.planBusy;
   const adds = ['Every period and custom date ranges', 'Tag filters with daily clicks per tag', 'Tracking IDs, categories and products', 'Creator Rewards tiers and enrollment alerts', 'Desktop alerts and all alert types', 'Other Associates sites', 'Report-gap protection', 'Updates every 5 minutes (Free: 30)'];
   const trialBtn = !pro && trialAvailable() ? `<button type="button" id="plantrial" class="primary" ${busy ? 'disabled' : ''}>Start my ${PLAN_CFG.trialDays}-day free trial</button>` : '';
-  const keyRow = paid ? '' : `<div class="plankey"><input id="plankey" type="text" placeholder="Bought a license? Paste its key here (or sign in with the e-mail you bought with)" autocomplete="off" spellcheck="false" aria-label="License key"><button type="button" id="plankeybtn" ${busy ? 'disabled' : ''}>Redeem</button></div>`;
+  const keyRow = paid ? '' : `<div class="plankey"><input id="plankey" type="text" placeholder="Bought a license? Paste its key here (or sign in with the email you bought with)" autocomplete="off" spellcheck="false" aria-label="License key"><button type="button" id="plankeybtn" ${busy ? 'disabled' : ''}>Redeem</button></div>`;
   const acct = `<div class="acctrow">Signed in as <b>${esc((license.account && license.account.email) || 'your account')}</b> <button type="button" class="linkbtn" id="signout">Sign out</button></div>`;
   return `<div class="plancard ${pro ? 'pro' : 'free'}">
     <div class="planhead"><span class="planname">${esc(w.title)}</span><span class="muted">${esc(w.line)}</span></div>
@@ -1198,13 +1198,13 @@ async function gateAction(kind) {
   if (r && !r.ok) view.gateMsg = planMessage(r.error);
   const st = await chrome.storage.local.get('license'); license = st.license || license; render();
 }
-// sign in inside the popup: e-mail forms and Google (the worker talks to Firebase; Google opens Chrome's own sign-in window)
+// sign in inside the popup: email forms and Google (the worker talks to Firebase; Google opens Chrome's own sign-in window)
 async function gateAuth(msg) {
   view.gateMsg = ''; view.gateInfo = ''; view.planBusy = true; render();
   let r; try { r = await chrome.runtime.sendMessage({ type: 'license', ...msg }); } catch (_) { r = { ok: false, error: 'network' }; }
   view.planBusy = false;
-  if (r && r.ok) { view.draft = { email: '', password: '' }; view.verify = null; if (r.info === 'reset_sent') view.gateInfo = 'If an account exists for that e-mail, a reset link is on its way.'; else if (r.info === 'verify_resent') view.gateInfo = 'Sent again. Check your inbox and spam folder.'; }
-  else if (r && r.error === 'verify_needed') { view.verify = { email: msg.email, password: msg.password }; if (msg.mode === 'in' && view.wasVerifying) view.gateMsg = 'Not verified yet. Open the link in the e-mail, then press the button again.'; }
+  if (r && r.ok) { view.draft = { email: '', password: '' }; view.verify = null; if (r.info === 'reset_sent') view.gateInfo = 'If an account exists for that email, a reset link is on its way.'; else if (r.info === 'verify_resent') view.gateInfo = 'Sent again. Check your inbox and spam folder.'; }
+  else if (r && r.error === 'verify_needed') { view.verify = { email: msg.email, password: msg.password }; if (msg.mode === 'in' && view.wasVerifying) view.gateMsg = 'Not verified yet. Open the link in the email, then press the button again.'; }
   else if (r && r.error !== 'google_cancelled') view.gateMsg = planMessage(r && r.error);
   view.wasVerifying = !!view.verify;
   const st = await chrome.storage.local.get('license'); license = st.license || license; render();

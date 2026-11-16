@@ -84,9 +84,9 @@ Newest first. Dates are when the change was made.
 - Header card never overflows into the buttons (no percentages below 1240px); Pending/Returned item count sits under the amount.
 - v5.0.0: Free / Pro plans (14-day no-card trial, license keys, signed server answers), plan card in Settings, upgrade pop-up, Pro gating in popup and worker, `tools/package.py`, store listing in `store/`.
 - v5.0.0: first-run guided tour (4 steps over the real controls, `TOUR` in popup.js, `settings.tourDone`; Settings -> Take the tour runs it again; the website demo offers it from the orange bar).
-- v5.0.0: mandatory account (Firebase sign-in on a hosted page, e-mail or Google) for every plan; sign-in gate screen; account token; licenses belong to accounts; trials per account.
+- v5.0.0: mandatory account (Firebase sign-in on a hosted page, email or Google) for every plan; sign-in gate screen; account token; licenses belong to accounts; trials per account.
 - tools/set-env.py local|prod switches the extension between your local server and production; package.py refuses a local build; local test sign-in on the server (dev_login, localhost only).
-- Sign-in inside the popup (Firebase REST for e-mail; Google through chrome.identity). Website: demo page shell, prices Pro $4.99/mo, $54.89/yr, Lifetime $99.
+- Sign-in inside the popup (Firebase REST for email; Google through chrome.identity). Website: demo page shell, prices Pro $4.99/mo, $54.89/yr, Lifetime $99.
 - The plan is re-checked on open, every 20 s while the window is open (5 s after See plans), and every 15 min in the background; Pro unlocks the screen by itself.
 - Every period and the custom range are now FREE (Free vs Pro: tags, tabs, Creator Rewards, alerts, other sites, gap guard, 5-min refresh).
 - Free = 1 store (the main store, the first Amazon lists); Pro and Lifetime = unlimited stores.

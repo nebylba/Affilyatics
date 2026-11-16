@@ -1,6 +1,6 @@
 // Account + license client, background worker only (importScripts after shared.js and plan.js).
 // Talks to OUR server, never to Amazon. Sign-in is mandatory (even for Free): the extension opens our sign-in web page
-// (Firebase: e-mail or Google), then collects its own account token by polling. It sends: a random installation id, the extension
+// (Firebase: email or Google), then collects its own account token by polling. It sends: a random installation id, the extension
 // version, the account token, and, only if you opted in, a few anonymous counters. Never earnings, store ids or tags.
 
 const LIC_KEY = 'license';
@@ -82,7 +82,7 @@ async function authPoll() {
   if (r.status !== 'done' || !r.accountToken) { delete lic.pending; await saveLicense({ ...lic, lastError: 'sign_in_expired' }); return { ok: false, error: 'sign_in_expired' }; }
   lic = await getLicense(); delete lic.pending;
   await saveLicense({ ...lic, account: { token: r.accountToken, exp: r.accountExp * 1000, email: r.user && r.user.email, name: r.user && r.user.name }, lastError: null });
-  const s = await licenseSync('status');                 // fetch the plan (Free, trial, or a license bought with this e-mail)
+  const s = await licenseSync('status');                 // fetch the plan (Free, trial, or a license bought with this email)
   return { ok: true, done: true, plan: s.plan };
 }
 async function signOut() {
@@ -91,7 +91,7 @@ async function signOut() {
   return { ok: true };
 }
 
-// ---- sign-in INSIDE the extension: Firebase Authentication over its REST API (e-mail + password) and Google through Chrome's own
+// ---- sign-in INSIDE the extension: Firebase Authentication over its REST API (email + password) and Google through Chrome's own
 // sign-in window (chrome.identity). Either way we end up with a Firebase ID token, which only our server sees; it answers with our account token.
 const FB_ERR = { INVALID_LOGIN_CREDENTIALS: 'wrong_credentials', INVALID_PASSWORD: 'wrong_credentials', EMAIL_NOT_FOUND: 'wrong_credentials', EMAIL_EXISTS: 'email_exists', INVALID_EMAIL: 'invalid_email', MISSING_EMAIL: 'invalid_email', MISSING_PASSWORD: 'weak_password', WEAK_PASSWORD: 'weak_password', USER_DISABLED: 'user_disabled', TOO_MANY_ATTEMPTS_TRY_LATER: 'too_many_attempts', OPERATION_NOT_ALLOWED: 'provider_disabled', INVALID_IDP_RESPONSE: 'google_failed' };
 async function fbCall(method, body) {
@@ -113,7 +113,7 @@ async function acceptLogin(idToken) {
   const s = await licenseSync('status');
   return { ok: true, plan: s.plan };
 }
-// mode: 'in' | 'up' (create account) | 'resend' (verification e-mail again) | 'reset' (password reset e-mail)
+// mode: 'in' | 'up' (create account) | 'resend' (verification email again) | 'reset' (password reset email)
 async function signInPassword({ mode, email, password }) {
   try {
     if (!email || (mode !== 'reset' && !password)) return { ok: false, error: mode === 'reset' ? 'invalid_email' : 'wrong_credentials' };
