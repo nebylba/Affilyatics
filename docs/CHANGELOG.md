@@ -94,4 +94,4 @@ Newest first. Dates are when the change was made.
 - Gifts: backoffice action on an account (1 month Pro or Lifetime Pro); the extension shows a gift banner and 'Pro (a gift)'.
 - The 14-day Pro trial starts automatically at the first sign-in; during it Pro features work and carry a 'PRO (N days left)' pill; the header button reads 'N days left in Pro'.
 
-- Pricing (2026-11-16): Pro $7.99/month or $79.90/year (two months free); Lifetime $129 founding price for the first 6 buyers, then $199. Website, terms, FAQ, store listing and owner docs updated.
+- Pricing (2026-11-16): Pro $7.99/month or $79.90/year (two months free); Lifetime $129 founding price for the first 50 early adopters, then $199. Website, terms, FAQ, store listing and owner docs updated.
