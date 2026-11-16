@@ -888,6 +888,7 @@ function maybeStartTour() {
 function planWords() {
   const i = planInfo(license), d = (n) => `${n} day${n === 1 ? '' : 's'}`;
   if (i.plan === 'pro' && i.source === 'trial') return { chip: `PRO TRIAL · ${i.daysLeft}d`, title: 'Pro trial', line: `Your free Pro trial has ${d(i.daysLeft)} left. No card was asked, nothing will be charged.` };
+  if (i.plan === 'pro' && i.source === 'gift') return { chip: 'PRO 🎁', title: 'Pro (a gift 🎁)', line: i.cycle === 'lifetime' ? 'A gift for you: Pro for life. Enjoy!' : `A gift for you: Pro until ${fmtDay(new Date(Date.now() + i.daysLeft * 86400000).toISOString().slice(0, 10), true)} (${d(i.daysLeft)}).` };
   if (i.plan === 'pro' && i.source === 'demo') return { chip: 'PRO DEMO', title: 'Pro (demo)', line: 'This demo shows every Pro feature.' };
   if (i.plan === 'pro') return { chip: 'PRO', title: i.source === 'comp' ? 'Pro (given)' : 'Pro', line: i.expiresAt || i.daysLeft != null ? `${i.cancelled ? 'Will not renew. Pro ends' : 'Pro is active until'} ${fmtDay(new Date(Date.now() + i.daysLeft * 86400000).toISOString().slice(0, 10), true)} (${d(i.daysLeft)}).` : 'Pro is active.' };
   return { chip: 'FREE · Upgrade', title: 'Free', line: i.trialEnded ? 'Your Pro trial has ended, so you are on Free. You keep all your data; Pro features are locked.' : i.reason === 'refunded' ? 'That license was refunded, so you are on Free.' : i.reason === 'license_ended' ? 'Your license has ended, so you are on Free.' : 'You are on the Free plan.' };
@@ -922,7 +923,7 @@ function upsellHTML() {
   </div></div>`;
 }
 function planBannerHTML() {
-  if (view.justUnlocked && Date.now() - view.justUnlocked < 15000) return '<div class="banner plan good" role="status"><span>🎉 <b>Congratulations!</b> Pro plan is now active and all features are unlocked. Enjoy! ✨</span><button type="button" id="dismissunlock" class="bclose" aria-label="Close" title="Close">✕</button></div>';
+  if (view.justUnlocked && Date.now() - view.justUnlocked < 15000) return `<div class="banner plan good" role="status"><span>${view.unlockGift ? `🎁 <b>A gift for you!</b> ${view.unlockGift === 'lifetime' ? 'Lifetime Pro is now active: every feature, for good.' : 'One month of Pro is now active: all features are unlocked.'} Enjoy! ✨` : '🎉 <b>Congratulations!</b> Pro plan is now active and all features are unlocked. Enjoy! ✨'}</span><button type="button" id="dismissunlock" class="bclose" aria-label="Close" title="Close">✕</button></div>`;
   const i = planInfo(license);
   if (i.plan === 'pro' && i.source === 'trial' && i.daysLeft <= 3) return `<div class="banner plan" role="status"><span>Your Pro trial ends in ${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'}.</span><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">Keep Pro</button></div>`;
   if (i.plan === 'free' && i.trialEnded && !settings.dismissTrialEnded) return `<div class="banner plan" role="status"><span>Your Pro trial has ended. You are on Free now and keep all your data.</span><span class="hbtns"><button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}">See plans</button><button type="button" id="dismisstrial" aria-label="Dismiss">✕</button></span></div>`;
@@ -1393,7 +1394,7 @@ chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
   if (ch.cache) { cache = ch.cache.newValue || {}; dirty = true; }
   if (ch.status) { status = ch.status.newValue || {}; dirty = true; }
-  if (ch.license) { const was = signedIn(), wasPro = isProNow(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } if (!wasPro && isProNow()) { view.justUnlocked = Date.now(); view.fastUntil = 0; requestLoad(true); if (typeof setTimeout !== 'undefined') setTimeout(() => { if (view.justUnlocked && Date.now() - view.justUnlocked >= 14900) { view.justUnlocked = 0; render(); } }, 15000); } dirty = true; }
+  if (ch.license) { const was = signedIn(), wasPro = isProNow(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } if (!wasPro && isProNow()) { view.unlockGift = license.ent && license.ent.source === 'gift' ? (license.ent.cycle === 'lifetime' ? 'lifetime' : 'month') : null; view.justUnlocked = Date.now(); view.fastUntil = 0; requestLoad(true); if (typeof setTimeout !== 'undefined') setTimeout(() => { if (view.justUnlocked && Date.now() - view.justUnlocked >= 14900) { view.justUnlocked = 0; render(); } }, 15000); } dirty = true; }
   if (ch.accounts) { setAccounts(ch.accounts.newValue); dirty = true; }
   if (ch.notif) {
     notif = ch.notif.newValue || { items: [], readAt: 0 };
