@@ -110,3 +110,4 @@ Newest first. Dates are when the change was made.
 - Demo (2026-11-17): the countries button shows up to 4 flags then "+N" (it showed none with more than 5 countries); the full demo page is wider so the demo shows at its natural 1160px, no longer smaller than the one on the home page.
 - Demo cache busting (2026-11-17): tools/build-demo.js stamps a new version (?v=) on the files app.html loads and on the iframe address in the site pages, so visitors never keep an old copy of the demo.
 - Notifications panel position (2026-11-17): it now opens right under the bell instead of under the whole header (which is tall), in the extension and in the demo.
+- Tour is now 5 steps (2026-11-17): step 4 "Mode, settings and alerts" explains the whole icon menu (light/dark mode, Settings, the bell); step 5 "Desktop alerts" opens the panel and asks to tick the box (animated).
