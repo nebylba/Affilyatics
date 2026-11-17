@@ -103,13 +103,15 @@ async function fbCall(method, body) {
   return j;
 }
 // A Firebase ID token -> our server -> account token (stored), then the plan is fetched.
-async function acceptLogin(idToken) {
+// A Google profile picture, kept only in this browser to show the avatar (never sent to our server). Only Google's own picture hosts are accepted.
+const cleanPicture = (u) => { try { const x = new URL(String(u)); return x.protocol === 'https:' && /(^|\.)(googleusercontent|ggpht)\.com$/.test(x.hostname) ? x.href : null; } catch (_) { return null; } };
+async function acceptLogin(idToken, extra = {}) {
   const installId = await ensureInstallId();
   let r;
   try { r = await apiCall('auth-login', { installId, idToken, version: chrome.runtime.getManifest().version }); } catch (e) { return { ok: false, error: e.message }; }
   if (!r.ok || !r.accountToken) return { ok: false, error: r.error || 'server_error' };
   const lic = await getLicense(); delete lic.pending;
-  await saveLicense({ ...lic, account: { token: r.accountToken, exp: r.accountExp * 1000, email: r.user && r.user.email, name: r.user && r.user.name }, lastError: null });
+  await saveLicense({ ...lic, account: { token: r.accountToken, exp: r.accountExp * 1000, email: r.user && r.user.email, name: r.user && r.user.name, picture: cleanPicture(extra.picture) }, lastError: null });
   const s = await licenseSync('status');
   return { ok: true, plan: s.plan };
 }
@@ -146,7 +148,7 @@ async function signInGoogle() {
     const idt = new URLSearchParams((back || '').split('#')[1] || '').get('id_token');
     if (!idt || b64uJson(idt.split('.')[1]).nonce !== nonce) throw new Error('bad');
     const fb = await fbCall('accounts:signInWithIdp', { postBody: `id_token=${idt}&providerId=google.com`, requestUri: redirect, returnIdpCredential: true, returnSecureToken: true });
-    return await acceptLogin(fb.idToken);
+    return await acceptLogin(fb.idToken, { picture: b64uJson(idt.split('.')[1]).picture });
   } catch (e) { return { ok: false, error: /^[a-z_]+$/.test(e.message) && e.message !== 'bad' ? e.message : 'google_failed' }; }
 }
 

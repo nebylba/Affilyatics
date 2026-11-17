@@ -966,41 +966,44 @@ function planWords() {
     return { chip: 'PRO', title: i.source === 'comp' ? 'Pro (given)' : 'Pro', line: i.expiresAt ? (i.cancelled ? `Will not renew. Pro ends ${when} (${d(i.daysLeft)}).` : renews ? `Pro, renews on ${when}.` : `Pro is active until ${when} (${d(i.daysLeft)}).`) : 'Pro is active, with no end date.' }; }
   return { chip: 'FREE · Upgrade', title: 'Free', line: i.trialEnded ? 'Your Pro trial has ended, so you are on Free. You keep all your data; Pro features are locked.' : i.reason === 'refunded' ? 'That license was refunded, so you are on Free.' : i.reason === 'license_ended' ? 'Your license has ended, so you are on Free.' : 'You are on the Free plan.' };
 }
-// Settings: the header's middle (empty there) holds the plan card, in the same style as the total-income card, with the connected account.
+// The signed-in avatar: the Google profile picture when the account came from Google (kept only on this computer), else the first letter on a colour made from the email.
+function avatarHTML(cls = '') {
+  const a = license && license.account; if (!a || !a.email) return '';
+  const name = String(a.name || a.email).trim(), ini = esc((name[0] || '?').toUpperCase());
+  let h = 0; for (const ch of String(a.email)) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  const img = a.picture ? `<img class="avimg" src="${esc(a.picture)}" alt="" referrerpolicy="no-referrer">` : '';
+  return `<span class="avatar ${cls}" style="--avh:${h}" aria-hidden="true"><span class="ini">${ini}</span>${img}</span>`;
+}
+// Settings: the header's middle (empty there) holds the whole plan card, in the same style as the total-income card:
+// the plan, the connected account (with its avatar), the buttons, what Pro adds, the license key and the usage opt-in.
 function planHeadHTML() {
   const w = planWords(), i = planInfo(license), pro = i.plan === 'pro', paid = pro && (i.source === 'license' || i.source === 'comp');
   const busy = view.planBusy;
   const trialBtn = !pro && trialAvailable() ? `<button type="button" id="plantrial" class="primary" ${busy ? 'disabled' : ''}>Start my ${PLAN_CFG.trialDays}-day free trial</button>` : '';
   const mail = esc((license.account && license.account.email) || 'your account');
+  const who = license.account && license.account.name ? `<span class="phname">${esc(license.account.name)}</span>` : '';
   const sub = i.source === 'trial' ? `${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'} left` : pro ? (i.cycle === 'lifetime' ? 'Lifetime' : i.source === 'gift' ? 'Gift' : 'Active') : 'Upgrade for more';
+  const adds = ['Every period and custom date ranges', 'Tag filters with daily clicks per tag', 'Tracking IDs, categories and products', 'Creator Rewards tiers and enrollment alerts', 'Desktop alerts and all alert types', 'Other Associates sites', 'Report-gap protection', 'Updates every 5 minutes (Free: 30)'];
+  const keyRow = paid ? '' : `<div class="plankey"><input id="plankey" type="text" placeholder="Bought a license? Paste its key here (or sign in with the email you bought with)" autocomplete="off" spellcheck="false" aria-label="License key"><button type="button" id="plankeybtn" ${busy ? 'disabled' : ''}>Redeem</button></div>`;
   return `<div class="totalcard phcard ${pro ? 'pro' : 'free'}">
-    <div class="trow2">
-      <div class="thead"><span class="l">Your plan</span><span class="big">${esc(w.title)}</span><span class="psub">${esc(sub)}</span></div>
-      <div class="phbody">
-        <p class="phline">${esc(w.line)}</p>
-        <p class="phacct" title="The account this browser is connected to">Signed in as <b>${mail}</b> <button type="button" class="linkbtn" id="signout">Sign out</button></p>
-        <div class="planbtns">${trialBtn}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${pro && paid ? '' : trialBtn ? '' : 'class="primary"'}>${pro ? 'Manage plan' : 'See plans'}</button><button type="button" id="planrefresh" ${busy ? 'disabled' : ''} title="Ask the license server again">Check again</button></div>
-        ${view.planMsg ? `<p class="small phmsg" style="color:${view.planMsg.err ? 'var(--bad)' : 'var(--text)'}">${esc(view.planMsg.text)}</p>` : ''}
-      </div>
+    <div class="thead"><span class="l">Your plan</span><span class="big">${esc(w.title)}</span><span class="psub">${esc(sub)}</span></div>
+    <div class="phbody">
+      <p class="phline">${esc(w.line)}</p>
+      <div class="phacct" title="The account this browser is connected to">${avatarHTML('md')}<span class="phwho">${who}<span>Signed in as <b>${mail}</b> <button type="button" class="linkbtn" id="signout">Sign out</button></span></span></div>
+      <div class="planbtns">${trialBtn}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${pro && paid ? '' : trialBtn ? '' : 'class="primary"'}>${pro ? 'Manage plan' : 'See plans'}</button><button type="button" id="planrefresh" ${busy ? 'disabled' : ''} title="Ask the license server again">Check again</button></div>
+      ${view.planMsg ? `<p class="small phmsg" style="color:${view.planMsg.err ? 'var(--bad)' : 'var(--text)'}">${esc(view.planMsg.text)}</p>` : ''}
+    </div>
+    ${pro ? '' : `<div class="phadds"><div class="muted small">Pro and Lifetime add:</div><ul class="planlist">${adds.map((a) => `<li>${esc(a)}</li>`).join('')}</ul></div>`}
+    <div class="phfoot">${keyRow}
+      <label class="nt plantele"><input type="checkbox" id="shareusage" ${settings.shareUsage ? 'checked' : ''}><span>Share anonymous usage <span class="muted small">(off by default: app version, plan and a few counters; never earnings, store names or tags. <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>)</span></span></label>
+      <span class="muted small">${license.checkedAt ? `Plan checked ${esc(timeAgo(license.checkedAt))}.` : 'Plan not checked yet.'} ${license.lastError ? `Last attempt failed (${esc(planMessage(license.lastError))})` : ''}</span>
     </div>
   </div>`;
 }
 // The connected account, always visible under the logo.
 function acctChipHTML() {
   const mail = license && license.account && license.account.email;
-  return mail ? `<div class="acctchip" title="Connected account: ${esc(mail)}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>${esc(mail)}</span></div>` : '';
-}
-function planCardHTML() {
-  const i = planInfo(license), pro = i.plan === 'pro', paid = pro && (i.source === 'license' || i.source === 'comp');
-  const busy = view.planBusy;
-  const adds = ['Every period and custom date ranges', 'Tag filters with daily clicks per tag', 'Tracking IDs, categories and products', 'Creator Rewards tiers and enrollment alerts', 'Desktop alerts and all alert types', 'Other Associates sites', 'Report-gap protection', 'Updates every 5 minutes (Free: 30)'];
-  const keyRow = paid ? '' : `<div class="plankey"><input id="plankey" type="text" placeholder="Bought a license? Paste its key here (or sign in with the email you bought with)" autocomplete="off" spellcheck="false" aria-label="License key"><button type="button" id="plankeybtn" ${busy ? 'disabled' : ''}>Redeem</button></div>`;
-  return `<div class="plancard ${pro ? 'pro' : 'free'}">
-    ${pro ? '' : `<div class="muted small">Pro and Lifetime add:</div><ul class="planlist">${adds.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>`}
-    ${keyRow}
-    <label class="nt plantele"><input type="checkbox" id="shareusage" ${settings.shareUsage ? 'checked' : ''}><span>Share anonymous usage <span class="muted small">(off by default: the app version, plan and a few counters such as how many stores you have. Never earnings, store names or tags. <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>)</span></span></label>
-    <p class="muted small" style="margin:8px 0 0">${license.checkedAt ? `Plan checked ${esc(timeAgo(license.checkedAt))}.` : 'Plan not checked yet.'} ${license.lastError ? `Last attempt failed (${esc(planMessage(license.lastError))})` : ''}</p>
-  </div>`;
+  return mail ? `<div class="acctchip" title="Connected account: ${esc(mail)}">${avatarHTML('sm')}<span>${esc(mail)}</span></div>` : '';
 }
 function upsellHTML() {
   const [title, text] = UPSELL[view.upsell] || UPSELL.plan;
@@ -1029,8 +1032,6 @@ function settingsHTML() {
     ? `<label class="nt"><input type="checkbox" data-notify="${id}" ${conf[id] ? 'checked' : ''}><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span>${FREE_NOTIFY.includes(id) ? '' : proMark()}</label>`
     : `<label class="nt locked" data-lock="notify"><input type="checkbox" disabled><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span>${PRO_PILL}</label>`)).join('');
   return `<section class="set">
-    <h2>Plan details</h2>
-    ${planCardHTML()}
     <h2>Countries to show</h2>
     ${countriesSettingsHTML()}
     <h2>Associate stores</h2>
@@ -1045,6 +1046,7 @@ function settingsHTML() {
 }
 
 // ---- popovers: period list, date picker, notifications ----------------------------------------------
+document.addEventListener('error', (e) => { const el = e.target; if (el && el.classList && el.classList.contains('avimg')) el.remove(); }, true);
 const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 const ICON_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
 const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = view.storeOpen = view.tagOpen = view.curOpen = false; };
