@@ -507,7 +507,9 @@ body.gate-mode #main { flex: 1; }
 .curdots .cursym { margin: 0; min-width: 20px; }
 .lonly .cursym { flex: 0 0 auto; min-width: 36px; }
 .cxnote { margin: 6px 12px 8px; max-width: 250px; }
-.tip b.cxs { display: grid; justify-items: end; gap: 1px; }
+.tip .cxh { justify-content: flex-start; }
+.tip .cxsub { padding-left: 16px; font-size: 12.5px; color: var(--muted); gap: 18px; }
+.tip .cxsub b { color: var(--text); }
 
 /* tour step: "tick Desktop alerts" with an animation */
 @keyframes tpulse { 0% { box-shadow: 0 0 0 100vmax rgba(2, 11, 30, .62), 0 0 0 0 rgba(255, 153, 0, .75); } 70% { box-shadow: 0 0 0 100vmax rgba(2, 11, 30, .62), 0 0 0 14px rgba(255, 153, 0, 0); } 100% { box-shadow: 0 0 0 100vmax rgba(2, 11, 30, .62), 0 0 0 0 rgba(255, 153, 0, 0); } }

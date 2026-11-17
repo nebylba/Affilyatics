@@ -340,10 +340,13 @@ function lastStrip(pts, vis, cur, group) {
     `<button class="lx" data-close="1" aria-label="Hide last day" title="Hide">✕</button></div>`;
 }
 
-// The exact amounts of each currency (never one converted number): "$12.00", "CA$1.20", "£0.50", one per line.
-function cxLines(p, id) {
-  const cs = Object.keys(p.cx || {}).filter((c) => (p.cx[c][id] || 0) !== 0).sort((a, b) => usdish(p.cx[b][id], b) - usdish(p.cx[a][id], a));
-  return cs.length ? cs.map((c) => `<span>${esc(fmtMoney(p.cx[c][id], c))}</span>`).join('') : '<span>—</span>';
+// A money line of the tooltip. One currency: the usual line. Several: the label, then one indented line per currency with its exact
+// amount (never one converted number): "USD  $41.12", "CAD  CA$3.93".
+function cxRowsHTML(p, s) {
+  const cs = Object.keys(p.cx || {}).filter((c) => (p.cx[c][s.id] || 0) !== 0).sort((x, y) => usdish(p.cx[y][s.id], y) - usdish(p.cx[x][s.id], x));
+  const head = `<span><i style="background:var(--s-${s.id})"></i> ${esc(s.label)}</span>`;
+  if (cs.length <= 1) return `<div>${head}<b>${cs.length ? esc(fmtMoney(p.cx[cs[0]][s.id], cs[0])) : '—'}</b></div>`;
+  return `<div class="cxh">${head}</div>` + cs.map((c) => `<div class="cxsub"><span>${c}</span><b>${esc(fmtMoney(p.cx[c][s.id], c))}</b></div>`).join('');
 }
 function wireChart(pts, vis, cur, group) {
   const box = $('#chartbox'); if (!box || !pts.length) return;
@@ -362,7 +365,7 @@ function wireChart(pts, vis, cur, group) {
     if (hov) hov.innerHTML = vis.map((s) => `<circle cx="${cx.toFixed(1)}" cy="${Y(s, p[s.id]).toFixed(1)}" r="3.5" fill="var(--s-${s.id})" stroke="var(--panel)" stroke-width="1.5"/>`).join('');
     const label = group === 'week' ? `Week of ${fmtDate(p.date)}` : fmtDate(p.date, group);
     tip.innerHTML = `<div class="d">${esc(label)}${view.cumulative ? ' · cumulative' : ''}</div>` +
-      vis.map((s) => `<div><span><i style="background:var(--s-${s.id})"></i> ${esc(s.label)}</span>${s.money && cur === 'ALL' ? `<b class="cxs">${cxLines(p, s.id)}</b>` : `<b>${fmtSeries(s, p[s.id], cur)}</b>`}</div>`).join('') +
+      vis.map((s) => (s.money && cur === 'ALL' ? cxRowsHTML(p, s) : `<div><span><i style="background:var(--s-${s.id})"></i> ${esc(s.label)}</span><b>${fmtSeries(s, p[s.id], cur)}</b></div>`)).join('') +
       (p.held ? `<div class="hnote"><b>Held values</b>Amazon's report is currently missing ${group === 'day' ? 'this day' : 'a day in this period'}. These numbers are the last ones we saw, not confirmed by Amazon yet. They are replaced as soon as Amazon restores the data (usually within a day).</div>` : '');
     tip.hidden = false;
     const px = (cx / W) * r.width;
