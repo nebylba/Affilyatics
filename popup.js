@@ -1231,7 +1231,9 @@ function render() {
   badge.textContent = unread > 9 ? '9+' : String(unread);
   $('#bell').title = unread ? `${unread} new notification${unread > 1 ? 's' : ''}` : 'Notifications';
   $('#bell').setAttribute('aria-expanded', String(view.notifOpen));
-  $('#notifpanel').innerHTML = view.notifOpen ? notifPanelHTML() : '';
+  const np = $('#notifpanel'); np.innerHTML = view.notifOpen ? notifPanelHTML() : '';
+  // the panel opens right under the bell (not under the whole header, which can be much taller)
+  if (np.style) { np.style.top = ''; const bell = $('#bell'), hdr = np.parentNode; if (view.notifOpen && bell && hdr && bell.getBoundingClientRect && hdr.getBoundingClientRect) { const b = bell.getBoundingClientRect(), h = hdr.getBoundingClientRect(); if (b.bottom) np.style.top = Math.round(b.bottom - h.top + 8) + 'px'; } }
   const sf = $('#storefilter'); if (sf) sf.innerHTML = status.signedOut || !signedIn() ? '' : view.showSettings ? '' : storeFilterHTML() + acctChipHTML();
   $('#headtotal').innerHTML = status.signedOut || !signedIn() ? '' : view.showSettings ? planHeadHTML() : totalCardHTML(tagAgg() || collect('day'));
   maybeStartTour();
