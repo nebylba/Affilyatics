@@ -522,3 +522,23 @@ body.gate-mode #main { flex: 1; }
 @keyframes tickbg { 0%, 20% { background: transparent; } 55%, 85% { background: var(--accent); } 100% { background: transparent; } }
 .fakebox.loop { animation: tickbg 2.4s ease-in-out infinite; } .fakebox.loop svg { animation: tick 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .tspot.pulse, .thand, .fakebox.loop, .fakebox.loop svg { animation: none; } .fakebox.loop svg { stroke-dashoffset: 0; } }
+
+/* Settings: the plan card sits in the header (same look as the total-income card); the connected account is always under the logo */
+.phcard { justify-content: center; }
+.phcard .thead { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.phcard .thead .l { color: var(--accent); }
+.phcard .thead .big { color: var(--accent); font-size: 22px; }
+.phcard.pro .thead { border-color: var(--s-earnings); background: color-mix(in srgb, var(--s-earnings) 16%, transparent); }
+.phcard.pro .thead .l, .phcard.pro .thead .big { color: var(--s-earnings); }
+.phcard .psub { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.phbody { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.phline { margin: 0; font-size: 14px; line-height: 1.35; }
+.phacct { margin: 0; font-size: 13px; color: var(--muted); }
+.phacct b { color: var(--text); font-weight: 600; word-break: break-all; }
+.phacct .linkbtn { margin-left: 6px; }
+.phcard .planbtns { margin: 4px 0 0; }
+.phcard .planbtns button { padding: 6px 12px; }
+.phmsg { margin: 2px 0 0; }
+.acctchip { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 0 2px; font-size: 12px; color: var(--muted); min-width: 0; }
+.acctchip svg { flex: 0 0 auto; }
+.acctchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
