@@ -185,6 +185,17 @@ function primaryCurrency(dayRows) {
   return best ? best[0] : LOCALES[selLocales()[0]]?.cur || 'USD';
 }
 
+// The chart plots ONE currency at a time (currencies are never mixed). It opens on the biggest one; with several, a small selector picks another.
+function chartCurrencies(dayRows) {
+  const t = {};
+  for (const r of dayRows) t[r.cur] = (t[r.cur] || 0) + r.earnings;
+  return Object.entries(t).sort((a, b) => usdish(b[1], b[0]) - usdish(a[1], a[0])).map((e) => e[0]);
+}
+function chartCurrency(dayRows) {
+  const list = chartCurrencies(dayRows);
+  return view.chartCur && list.includes(view.chartCur) ? view.chartCur : primaryCurrency(dayRows);
+}
+
 function weekStart(ds) { const d = parseYmd(ds); const k = (d.getDay() + 6) % 7; return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - k)); }
 
 const emptyPt = (date) => Object.fromEntries([['date', date], ['held', false], ...SERIES.map((s) => [s.id, 0])]);
@@ -522,7 +533,8 @@ function kpiHTML(dayRows) {
 }
 
 function chartHTML(dayRows) {
-  const cur = primaryCurrency(dayRows);
+  const cur = chartCurrency(dayRows);
+  const curs = chartCurrencies(dayRows);
   const { pts, group, totals, auto } = buildPoints(dayRows, cur);
   const vis = chartSeries();
   const multiCur = new Set(dayRows.map((r) => r.cur)).size > 1;
@@ -536,6 +548,7 @@ function chartHTML(dayRows) {
     <div class="panelhead">
       <div class="legend">${legend || '<span class="muted small">No metric selected: use the Metrics menu.</span>'}</div>
       <div class="opts">
+        ${curs.length > 1 ? `<select id="ccur" aria-label="Currency of the chart" title="The chart shows one currency at a time. Amounts in other currencies are in the header card and the tables.">${curs.map((c) => `<option value="${c}" ${c === cur ? 'selected' : ''}>${c}</option>`).join('')}</select>` : ''}
         <label><input type="checkbox" id="cum" ${view.cumulative ? 'checked' : ''}> Cumulative</label>
         <select id="grp" aria-label="Group by">${['day', 'week', 'month'].map((g) => `<option value="${g}" ${g === group ? 'selected' : ''}>${g[0].toUpperCase() + g.slice(1)}${g === auto && !view.group ? ' (auto)' : ''}</option>`).join('')}</select>
       </div>
@@ -1081,7 +1094,7 @@ function mainHTML() {
   const dayRows = collect('day');
   const cRows = chartRows();
   const loadingOnly = !dayRows.length && isLoading();
-  const cur = primaryCurrency(cRows);
+  const cur = chartCurrency(cRows);
   const metricsDD = metricsDropdownHTML(buildPoints(cRows, cur).totals, cur);
   const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div></div>`;
   const siteErr = Object.entries(status.siteErrors || {}).filter(([loc]) => selLocales().includes(loc))
@@ -1095,7 +1108,7 @@ function mainHTML() {
 // Filters are remembered: closing the popup and reopening it brings back the same view.
 let savedView = '';
 function persistView() {
-  const v = { period: view.period, from: view.from, to: view.to, sub: view.sub, metrics: [...view.metrics], group: view.group, cumulative: view.cumulative, hideLast: !!view.hideLast, sel: view.sel ? [...view.sel] : null, stores: view.stores ? [...view.stores] : null, tags: view.tags ? [...view.tags] : null };
+  const v = { period: view.period, from: view.from, to: view.to, sub: view.sub, metrics: [...view.metrics], group: view.group, chartCur: view.chartCur || null, cumulative: view.cumulative, hideLast: !!view.hideLast, sel: view.sel ? [...view.sel] : null, stores: view.stores ? [...view.stores] : null, tags: view.tags ? [...view.tags] : null };
   const j = JSON.stringify(v);
   if (j === savedView) return;
   savedView = j;
@@ -1109,6 +1122,7 @@ function restoreView(v) {
   const ids = SERIES.map((x) => x.id);
   if (Array.isArray(v.metrics)) view.metrics = new Set(v.metrics.filter((m) => ids.includes(m)));
   if (['day', 'week', 'month'].includes(v.group)) view.group = v.group;
+  if (typeof v.chartCur === 'string' && /^[A-Z]{3}$/.test(v.chartCur)) view.chartCur = v.chartCur;
   view.cumulative = !!v.cumulative; view.hideLast = !!v.hideLast;
   if (Array.isArray(v.sel)) { const l = v.sel.filter((c) => enabledCountries().includes(c)); view.sel = l.length && l.length < enabledCountries().length ? new Set(l) : null; }
   else if ('sel' in v) view.sel = null;
@@ -1152,7 +1166,7 @@ function render() {
   if (!view.showSettings && !status.signedOut && signedIn()) {
     const dayRows = chartRows();
     if (dayRows.length) {
-      const cur = primaryCurrency(dayRows);
+      const cur = chartCurrency(dayRows);
       const { pts, group } = buildPoints(dayRows, cur);
       wireChart(pts, chartSeries(), cur, group);
     }
@@ -1348,6 +1362,7 @@ document.addEventListener('change', async (e) => {
     render();
   } else if (t.id === 'cum') { view.cumulative = t.checked; render(); }
   else if (t.id === 'grp') { view.group = t.value; render(); }
+  else if (t.id === 'ccur') { view.chartCur = t.value; render(); }
   else if (t.dataset.lallbox) {
     setSel(t.checked ? allowedSel() : new Set(allowedLocales().slice(0, 1)), true);
   } else if (t.dataset.loc) {

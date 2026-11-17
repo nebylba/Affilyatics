@@ -99,3 +99,5 @@ Newest first. Dates are when the change was made.
 - Plans reviewed end to end (2026-11-17): one shared plan rule on the server and in the backoffice lists; late-renewal grace (3 days) for subscriptions; a refund ends Pro for good; the longest license wins; "Link to account" on the license page for purchases made with another email; the extension shows "Renews on <date>" and a "renewal is late" message and honors `accessUntil`; the site explains how Pro unlocks after buying.
 
 - Extension modes (2026-11-17): `python tools/set-env.py test` points the extension at the shared test server https://eblyn.com/Affilyatics/ and KEEPS the fixed extension id (Google sign-in needs it); `prod` is only for the store build (no key); `local` is WAMP. Reload the extension after switching.
+
+- Chart currency selector (2026-11-17): the chart plots one currency at a time (never mixed); with several currencies a small selector next to "Cumulative" switches between them (the choice is remembered). Before, earnings in CAD or GBP (for example a CA commission) were not plotted at all when USD was the main currency.
