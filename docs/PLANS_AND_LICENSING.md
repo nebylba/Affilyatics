@@ -60,3 +60,22 @@ Backend checked by hand with curl and signed fake Freemius webhooks.
 
 ## First-run tour
 `TOUR` (popup.js) lists the steps; `drawTour()` spotlights the real element (`getBoundingClientRect`) and skips steps whose target is not on screen; `maybeStartTour()` starts it once when the dashboard is showing data and `settings.tourDone` is unset; `startAffilyaticsTour()` is exposed for the website demo. Texts differ for Free and Pro.
+
+## One plan at a time: the rules (2026-11-17)
+
+The server decides, in `compute_entitlement()` (`_lib/lib.php`); the backoffice lists use the same rule in SQL (`sql_plan()` / `sql_license_usable()`), so the extension, the account page and the lists never disagree. Nothing is ever deleted: trials, licenses (paid, gift, given) and payments stay as history, only the answer changes.
+
+| Situation | What the extension shows |
+|---|---|
+| New account | Pro trial, 14 days, once per account / email / browser |
+| Trial running + a gift or a purchase | The gift or the paid license; the trial countdown disappears (the trial row stays) |
+| Trial ended, nothing else | Free ("trial ended") |
+| Gift, then buys | Paid shown. If the paid license ends before the gift, the unused gift days still count: the license that lasts longest wins, a lifetime one beats everything |
+| Subscription cancelled (no renewal) | Pro until the end date, marked cancelled |
+| Renewal late | Pro stays 3 more days (`renewal_grace_days`, only for subscriptions billed by Freemius), then Free. A late renewal brings Pro back by itself |
+| Refunded | Free at once, even if a trial is still running (a refund ends Pro for good) |
+| Revoked by hand | Free; a webhook never undoes a refund or a hand revoke |
+| Lifetime (paid or gift) | Pro with no end |
+| Bought with another email | Stays unlinked: the buyer pastes the license key in the extension, or an admin links it on the license page (Link to account). Never linked by guessing; an unverified email never links |
+
+Tests: `scenarios.php` (states), `webhook-flows.php` (purchase life-cycle), `plan-states.js` (what the extension shows).

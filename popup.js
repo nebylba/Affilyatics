@@ -904,7 +904,9 @@ function planWords() {
   if (i.plan === 'pro' && i.source === 'trial') return { chip: `PRO TRIAL · ${i.daysLeft}d`, title: 'Pro trial', line: `Your free Pro trial has ${d(i.daysLeft)} left. No card was asked, nothing will be charged.` };
   if (i.plan === 'pro' && i.source === 'gift') return { chip: 'PRO 🎁', title: 'Pro (a gift 🎁)', line: i.cycle === 'lifetime' ? 'A gift for you: Pro for life. Enjoy!' : `A gift for you: Pro until ${fmtDay(new Date(Date.now() + i.daysLeft * 86400000).toISOString().slice(0, 10), true)} (${d(i.daysLeft)}).` };
   if (i.plan === 'pro' && i.source === 'demo') return { chip: 'PRO DEMO', title: 'Pro (demo)', line: 'This demo shows every Pro feature.' };
-  if (i.plan === 'pro') return { chip: 'PRO', title: i.source === 'comp' ? 'Pro (given)' : 'Pro', line: i.expiresAt || i.daysLeft != null ? `${i.cancelled ? 'Will not renew. Pro ends' : 'Pro is active until'} ${fmtDay(new Date(Date.now() + i.daysLeft * 86400000).toISOString().slice(0, 10), true)} (${d(i.daysLeft)}).` : 'Pro is active.' };
+  if (i.plan === 'pro' && i.pastDue) return { chip: 'PRO', title: 'Pro', line: 'Your renewal payment has not arrived yet. Pro stays on for a few more days: check your payment method in the Freemius customer portal.' };
+  if (i.plan === 'pro') { const when = i.expiresAt ? fmtDay(String(i.expiresAt).slice(0, 10), true) : '', renews = !i.cancelled && (i.cycle === 'monthly' || i.cycle === 'annual');
+    return { chip: 'PRO', title: i.source === 'comp' ? 'Pro (given)' : 'Pro', line: i.expiresAt ? (i.cancelled ? `Will not renew. Pro ends ${when} (${d(i.daysLeft)}).` : renews ? `Pro, renews on ${when}.` : `Pro is active until ${when} (${d(i.daysLeft)}).`) : 'Pro is active, with no end date.' }; }
   return { chip: 'FREE · Upgrade', title: 'Free', line: i.trialEnded ? 'Your Pro trial has ended, so you are on Free. You keep all your data; Pro features are locked.' : i.reason === 'refunded' ? 'That license was refunded, so you are on Free.' : i.reason === 'license_ended' ? 'Your license has ended, so you are on Free.' : 'You are on the Free plan.' };
 }
 function planCardHTML() {

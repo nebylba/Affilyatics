@@ -95,3 +95,5 @@ Newest first. Dates are when the change was made.
 - The 14-day Pro trial starts automatically at the first sign-in; during it Pro features work and carry a 'PRO (N days left)' pill; the header button reads 'N days left in Pro'.
 
 - Pricing (2026-11-16): Pro $7.99/month or $79.90/year (two months free); Lifetime $129 founding price for the first 50 early adopters, then $199. Website, terms, FAQ, store listing and owner docs updated.
+
+- Plans reviewed end to end (2026-11-17): one shared plan rule on the server and in the backoffice lists; late-renewal grace (3 days) for subscriptions; a refund ends Pro for good; the longest license wins; "Link to account" on the license page for purchases made with another email; the extension shows "Renews on <date>" and a "renewal is late" message and honors `accessUntil`; the site explains how Pro unlocks after buying.

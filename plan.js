@@ -39,7 +39,7 @@ function planOf(lic, now = Date.now()) {
   const t = (s) => (s ? Date.parse(s) : Infinity);
   if (!(now < t(e.validUntil))) return 'free';                       // not re-confirmed by the server for too long
   if (e.source === 'trial' && !(now < t(e.trialEndsAt))) return 'free';
-  if (e.source !== 'trial' && e.expiresAt && !(now < t(e.expiresAt))) return 'free';
+  if (e.source !== 'trial') { const end = e.accessUntil || e.expiresAt; if (end && !(now < t(end))) return 'free'; }   // accessUntil = the end plus a short grace for a late renewal
   return 'pro';
 }
 const featuresFor = (lic, now) => FEATURES[planOf(lic, now)];
@@ -48,9 +48,9 @@ const featuresFor = (lic, now) => FEATURES[planOf(lic, now)];
 function planInfo(lic, now = Date.now()) {
   const plan = planOf(lic, now), e = (lic && lic.ent) || {};
   const day = 86400000;
-  const out = { plan, source: plan === 'pro' ? e.source : null, daysLeft: null, cancelled: !!e.cancelled, reason: e.reason || null, trialEnded: false, cycle: e.cycle || null };
+  const out = { plan, source: plan === 'pro' ? e.source : null, daysLeft: null, cancelled: !!e.cancelled, reason: e.reason || null, trialEnded: false, cycle: e.cycle || null, pastDue: false, expiresAt: (plan === 'pro' && e.expiresAt) || null };
   if (plan === 'pro' && e.source === 'trial') out.daysLeft = Math.max(0, Math.ceil((Date.parse(e.trialEndsAt) - now) / day));
-  if (plan === 'pro' && e.expiresAt) out.daysLeft = Math.max(0, Math.ceil((Date.parse(e.expiresAt) - now) / day));
+  if (plan === 'pro' && e.expiresAt) { out.daysLeft = Math.max(0, Math.ceil((Date.parse(e.expiresAt) - now) / day)); out.pastDue = e.source !== 'trial' && now >= Date.parse(e.expiresAt); }
   if (plan === 'free' && (e.reason === 'trial_ended' || (e.source === 'trial' && e.trialEndsAt && Date.parse(e.trialEndsAt) <= now))) out.trialEnded = true;
   return out;
 }
