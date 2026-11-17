@@ -101,3 +101,4 @@ Newest first. Dates are when the change was made.
 - Extension modes (2026-11-17): `python tools/set-env.py test` points the extension at the shared test server https://eblyn.com/Affilyatics/ and KEEPS the fixed extension id (Google sign-in needs it); `prod` is only for the store build (no key); `local` is WAMP. Reload the extension after switching.
 
 - Chart currency selector (2026-11-17): the chart plots one currency at a time (never mixed); with several currencies a small selector next to "Cumulative" switches between them (the choice is remembered). Before, earnings in CAD or GBP (for example a CA commission) were not plotted at all when USD was the main currency.
+- Chart "All currencies (~USD)" (2026-11-17): the currency selector has an option that draws every currency together, converted to US dollars at the rough fixed rates in shared.js (APPROX_USD). Every amount is marked "~" and the caption says it is an estimate, not an Amazon figure.

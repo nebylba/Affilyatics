@@ -61,7 +61,7 @@ stubbed `chrome.storage`. UI changes cannot be seen without loading the extensio
 - Amazon's calendar days are **Pacific time**. The user may be in another zone; "today" differs for hours.
 - Amazon's range report and single-day query can disagree for recent days (see AMAZON_REPORT_GAP.md). Never treat a
   vanished day as truth without the guard.
-- Money: always `fmtMoney(value, currency)`; never mix currencies; main currency big, others as small `+` amounts.
+- Money: always `fmtMoney(value, currency)`; never mix currencies (the one exception: the chart's "All currencies (~USD)" option converts at the rough `APPROX_USD` rates and every amount is marked with `~`); main currency big, others as small `+` amounts.
 - Layout must not jump: fixed-height cells, always render all columns, reserve empty lines.
 - Estimates must be marked (`~`) and carry a "?" tooltip saying they are not Amazon figures.
 - Do not call Amazon endpoints directly from outside the extension: they need the page's auth headers (401 otherwise).

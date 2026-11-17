@@ -193,6 +193,7 @@ function chartCurrencies(dayRows) {
 }
 function chartCurrency(dayRows) {
   const list = chartCurrencies(dayRows);
+  if (view.chartCur === 'ALL' && list.length > 1) return 'ALL';
   return view.chartCur && list.includes(view.chartCur) ? view.chartCur : primaryCurrency(dayRows);
 }
 
@@ -206,20 +207,21 @@ function buildPoints(dayRows, cur) {
   const group = view.group || auto;
   const idx = new Map(days.map((d, i) => [d, i]));
   const base = days.map((d) => emptyPt(d));
+  const fx = (c) => (cur === 'ALL' ? (APPROX_USD[c] || 1) : (c === cur ? 1 : 0));      // 'ALL': every currency, at rough US-dollar rates
   for (const r of dayRows) {
     const i = idx.get(r.name); if (i == null) continue;
     const b = base[i];
     if (r.held) b.held = true;
     b.clicks += r.clicks; b.ordered += r.ordered; b.shipped += r.shipped; b.returned += r.returned;
-    if (r.cur === cur) { b.earnings += r.earnings; b.orderedRevenue += r.orderedRevenue; }
+    { const f = fx(r.cur); b.earnings += r.earnings * f; b.orderedRevenue += r.orderedRevenue * f; }
   }
   for (const r of collect('income')) {
-    const i = idx.get(r.name); if (i == null || r.cur !== cur) continue;
-    base[i].bounty += r.bounty; base[i].bonus += r.bonus; base[i].connections += r.connections;
+    const i = idx.get(r.name); const f = fx(r.cur); if (i == null || !f) continue;
+    base[i].bounty += r.bounty * f; base[i].bonus += r.bonus * f; base[i].connections += r.connections * f;
   }
   for (const r of collect('rewards')) {
-    const i = idx.get(r.name); if (i == null || r.cur !== cur) continue;
-    base[i].rewards += r.rewards;
+    const i = idx.get(r.name); const f = fx(r.cur); if (i == null || !f) continue;
+    base[i].rewards += r.rewards * f;
   }
   for (const b of base) b.total = b.earnings + b.bounty + b.bonus + b.connections + b.rewards;
   let pts = base;
@@ -247,7 +249,9 @@ const fmtDate = (ds, group) => {
   if (group === 'month') return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
-const fmtSeries = (s, v, cur) => (s.money ? fmtMoney(v, cur) : fmtNum(v));
+// 'ALL' = every currency drawn together, converted to US dollars at ROUGH fixed rates (APPROX_USD): an estimate, so it is marked with "~".
+const fmtCur = (v, cur, compact) => (cur === 'ALL' ? '~' + fmtMoney(v, 'USD', compact) : fmtMoney(v, cur, compact));
+const fmtSeries = (s, v, cur) => (s.money ? fmtCur(v, cur) : fmtNum(v));
 
 // Monotone cubic curve through the points: smooth like Amazon's chart, never dips below zero or overshoots.
 function smoothPath(xs, ys) {
@@ -285,7 +289,7 @@ function chartSVG(pts, vis, cur, group) {
     const y = mt + ph - (k / 4) * ph;
     const v = max[prim.id] * k / 4;
     g += `<line class="grid" x1="${ml}" x2="${W - mr}" y1="${y}" y2="${y}"/>` +
-      `<text class="axis" x="${ml - 8}" y="${y + 4}" text-anchor="end">${prim.money ? fmtMoney(v, cur, true) : fmtNum(v)}</text>`;
+      `<text class="axis" x="${ml - 8}" y="${y + 4}" text-anchor="end">${prim.money ? fmtCur(v, cur, true) : fmtNum(v)}</text>`;
   }
   let body = '';
   // days Amazon's report is missing (we show the last known values): orange band
@@ -542,13 +546,13 @@ function chartHTML(dayRows) {
   const caption = chartIsTag()
     ? `Daily clicks of the selected tags (exact, from Amazon). Amazon does not report earnings or orders per day for a tag: those are only period totals, shown in the cards.`
     : vis.length
-      ? `${esc(vis[0].label)}${vis[0].money ? ` (${cur})` : ''}. Other series are scaled to their own peak so shapes stay readable; hover for exact values.`
+      ? `${esc(vis[0].label)}${vis[0].money ? (cur === 'ALL' ? ' (all currencies, converted to USD at rough rates: ~ marks an estimate, not an Amazon figure)' : ` (${cur})`) : ''}. Other series are scaled to their own peak so shapes stay readable; hover for exact values.`
       : '';
   return `<section class="panel">
     <div class="panelhead">
       <div class="legend">${legend || '<span class="muted small">No metric selected: use the Metrics menu.</span>'}</div>
       <div class="opts">
-        ${curs.length > 1 ? `<select id="ccur" aria-label="Currency of the chart" title="The chart shows one currency at a time. Amounts in other currencies are in the header card and the tables.">${curs.map((c) => `<option value="${c}" ${c === cur ? 'selected' : ''}>${c}</option>`).join('')}</select>` : ''}
+        ${curs.length > 1 ? `<select id="ccur" aria-label="Currency of the chart" title="The chart shows one currency at a time. Amounts in other currencies are in the header card and the tables."><option value="ALL" ${cur === 'ALL' ? 'selected' : ''}>All currencies (~USD)</option>${curs.map((c) => `<option value="${c}" ${c === cur ? 'selected' : ''}>${c}</option>`).join('')}</select>` : ''}
         <label><input type="checkbox" id="cum" ${view.cumulative ? 'checked' : ''}> Cumulative</label>
         <select id="grp" aria-label="Group by">${['day', 'week', 'month'].map((g) => `<option value="${g}" ${g === group ? 'selected' : ''}>${g[0].toUpperCase() + g.slice(1)}${g === auto && !view.group ? ' (auto)' : ''}</option>`).join('')}</select>
       </div>
