@@ -7,16 +7,16 @@
 
 const PLAN_CFG = {
   // Where the license server lives. Changing the domain later means releasing an extension update.
-  api: 'http://eblyn.local/Affilyatics/api/v1',
+  api: 'https://eblyn.com/Affilyatics/api/v1',
   // Public half of the signing key (base64 SPKI). The matching private key lives only on the server (php _lib/make-keys.php).
   publicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxceWprn33HVNKGLIxsVn/HMsuSwaGcnIINdYR2YDRZai/j00oxzirfY6fKuBq8TlTu+1P8zOGaj/f3OpCNMp90ONaIRBCgh6tRmT8jay/RErYebX4+j5zmnIjm3pcWvdLgWdnfV5PtsO/s9jD0GkuZ5CqIdBAgSNaMAY3cK4hGKe9ljX+avyIRE9clie3PbuavM2q6KlHnPSQn+/R8u+LmbD01o9q0ZOFW2kOOl9rM7zVO9aznx7s2/7mpZeYE9rJ6OFj1i9yqW7za6JIhZZnWD/nOSuK9MMbm0QnY3XHVEgEE7xUl4tP3ejzdR8261V9n/B8WNMZ4FVHXu2SFe8fQIDAQAB',
   // Public web API key of the Firebase project (not a secret). Used for the sign-in forms inside the extension.
   firebase: { apiKey: 'AIzaSyBAkaKazUQKafNcPhzwua22S1ePH3UHe90' },
   // OAuth "Web client" id used for Google sign-in inside the extension (Google Cloud -> Credentials; see docs/Firebase-setup.md). Empty = Google button explains it is not set up.
   googleClientId: '497058350733-c6893gmjo8crvvm8no2cosk5vq9r4pcb.apps.googleusercontent.com',
-  signinUrl: 'http://eblyn.local/Affilyatics/signin/',      // the page where people sign in (Firebase: email or Google)
-  pricingUrl: 'http://eblyn.local/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
-  privacyUrl: 'http://eblyn.local/Affilyatics/privacy/',
+  signinUrl: 'https://eblyn.com/Affilyatics/signin/',      // the page where people sign in (Firebase: email or Google)
+  pricingUrl: 'https://eblyn.com/Affilyatics/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
+  privacyUrl: 'https://eblyn.com/Affilyatics/privacy/',
   contactEmail: 'contact@eblyn.com',                       // support address shown in the footer of the sign-in screen
   trialDays: 14,
   recheckHours: 0.25            // the worker asks the server about the plan every 15 minutes (and the open window every 20 seconds)
