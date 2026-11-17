@@ -500,3 +500,25 @@ body.gate-mode #main { flex: 1; }
 .utip .uk { flex: none; color: var(--good); font-weight: 700; }
 .utip .hnote { display: block; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .utip .ucta { display: block; margin-top: 6px; color: var(--accent); font-size: 13px; }
+
+/* currency menu (same look as the countries menu) and the per-currency lines of the chart tooltip */
+.cursym { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; padding: 0 5px; margin-right: 6px; border-radius: 5px; background: color-mix(in srgb, var(--accent) 22%, transparent); font-size: 12px; font-weight: 700; }
+.curdots { display: inline-flex; gap: 3px; margin-right: 8px; }
+.curdots .cursym { margin: 0; min-width: 20px; }
+.lonly .cursym { flex: 0 0 auto; min-width: 36px; }
+.cxnote { margin: 6px 12px 8px; max-width: 250px; }
+.tip b.cxs { display: grid; justify-items: end; gap: 1px; }
+
+/* tour step: "tick Desktop alerts" with an animation */
+@keyframes tpulse { 0% { box-shadow: 0 0 0 100vmax rgba(2, 11, 30, .62), 0 0 0 0 rgba(255, 153, 0, .75); } 70% { box-shadow: 0 0 0 100vmax rgba(2, 11, 30, .62), 0 0 0 14px rgba(255, 153, 0, 0); } 100% { box-shadow: 0 0 0 100vmax rgba(2, 11, 30, .62), 0 0 0 0 rgba(255, 153, 0, 0); } }
+.tspot.pulse { animation: tpulse 1.4s ease-out infinite; }
+@keyframes thand { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.thand { position: fixed; z-index: 97; font-size: 26px; line-height: 1; pointer-events: none; animation: thand .9s ease-in-out infinite; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5)); }
+.tdemo { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 8px 10px; border: 1px dashed var(--accent); border-radius: 8px; font-size: 14px; }
+.fakebox { width: 20px; height: 20px; border: 2px solid var(--accent); border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: #14244a; background: transparent; }
+.fakebox svg { width: 14px; height: 14px; stroke-dasharray: 24; stroke-dashoffset: 24; }
+.fakebox.on { background: var(--accent); } .fakebox.on svg { stroke-dashoffset: 0; }
+@keyframes tick { 0%, 20% { stroke-dashoffset: 24; } 55%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 24; } }
+@keyframes tickbg { 0%, 20% { background: transparent; } 55%, 85% { background: var(--accent); } 100% { background: transparent; } }
+.fakebox.loop { animation: tickbg 2.4s ease-in-out infinite; } .fakebox.loop svg { animation: tick 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tspot.pulse, .thand, .fakebox.loop, .fakebox.loop svg { animation: none; } .fakebox.loop svg { stroke-dashoffset: 0; } }

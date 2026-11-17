@@ -191,11 +191,20 @@ function chartCurrencies(dayRows) {
   for (const r of dayRows) t[r.cur] = (t[r.cur] || 0) + r.earnings;
   return Object.entries(t).sort((a, b) => usdish(b[1], b[0]) - usdish(a[1], a[0])).map((e) => e[0]);
 }
-function chartCurrency(dayRows) {
+// Which currencies the chart includes: view.curSel (a Set) or, when null, all of them (like "All countries").
+function chartCurSet(dayRows) {
   const list = chartCurrencies(dayRows);
-  if (view.chartCur === 'ALL' && list.length > 1) return 'ALL';
-  return view.chartCur && list.includes(view.chartCur) ? view.chartCur : primaryCurrency(dayRows);
+  const sel = view.curSel ? list.filter((c) => view.curSel.has(c)) : list;
+  return sel.length ? sel : list;
 }
+// One currency: its exact amounts. Several: 'ALL' = they are drawn together, converted to US dollars at rough rates (marked with ~).
+function chartCurrency(dayRows) {
+  const s = chartCurSet(dayRows);
+  return s.length > 1 ? 'ALL' : (s[0] || primaryCurrency(dayRows));
+}
+const curSymbol = (c) => { try { const p = new Intl.NumberFormat('en-US', { style: 'currency', currency: c }).formatToParts(0).find((x) => x.type === 'currency'); return p ? p.value : c; } catch (_) { return c; } };
+const curName = (c) => { try { return new Intl.DisplayNames(['en'], { type: 'currency' }).of(c) || c; } catch (_) { return c; } };
+const CUR_MONEY = ['earnings', 'orderedRevenue', 'bounty', 'bonus', 'connections', 'rewards', 'total'];
 
 function weekStart(ds) { const d = parseYmd(ds); const k = (d.getDay() + 6) % 7; return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - k)); }
 
@@ -207,23 +216,26 @@ function buildPoints(dayRows, cur) {
   const group = view.group || auto;
   const idx = new Map(days.map((d, i) => [d, i]));
   const base = days.map((d) => emptyPt(d));
-  const fx = (c) => (cur === 'ALL' ? (APPROX_USD[c] || 1) : (c === cur ? 1 : 0));      // 'ALL': every currency, at rough US-dollar rates
+  const selC = new Set(chartCurSet(dayRows));
+  const fx = (c) => (cur === 'ALL' ? (selC.has(c) ? (APPROX_USD[c] || 1) : 0) : (c === cur ? 1 : 0));      // 'ALL': the chosen currencies, at rough US-dollar rates
+  const cxAdd = (b, c, id, v) => { if (cur !== 'ALL' || !v) return; const o = (b.cx || (b.cx = {}))[c] || (b.cx[c] = {}); o[id] = (o[id] || 0) + v; };   // the exact amounts per currency (for the tooltip)
   for (const r of dayRows) {
     const i = idx.get(r.name); if (i == null) continue;
     const b = base[i];
     if (r.held) b.held = true;
     b.clicks += r.clicks; b.ordered += r.ordered; b.shipped += r.shipped; b.returned += r.returned;
-    { const f = fx(r.cur); b.earnings += r.earnings * f; b.orderedRevenue += r.orderedRevenue * f; }
+    { const f = fx(r.cur); b.earnings += r.earnings * f; b.orderedRevenue += r.orderedRevenue * f; if (f) { cxAdd(b, r.cur, 'earnings', r.earnings); cxAdd(b, r.cur, 'orderedRevenue', r.orderedRevenue); } }
   }
   for (const r of collect('income')) {
     const i = idx.get(r.name); const f = fx(r.cur); if (i == null || !f) continue;
     base[i].bounty += r.bounty * f; base[i].bonus += r.bonus * f; base[i].connections += r.connections * f;
+    cxAdd(base[i], r.cur, 'bounty', r.bounty); cxAdd(base[i], r.cur, 'bonus', r.bonus); cxAdd(base[i], r.cur, 'connections', r.connections);
   }
   for (const r of collect('rewards')) {
     const i = idx.get(r.name); const f = fx(r.cur); if (i == null || !f) continue;
-    base[i].rewards += r.rewards * f;
+    base[i].rewards += r.rewards * f; cxAdd(base[i], r.cur, 'rewards', r.rewards);
   }
-  for (const b of base) b.total = b.earnings + b.bounty + b.bonus + b.connections + b.rewards;
+  for (const b of base) { b.total = b.earnings + b.bounty + b.bonus + b.connections + b.rewards; for (const c of Object.keys(b.cx || {})) { const o = b.cx[c]; o.total = (o.earnings || 0) + (o.bounty || 0) + (o.bonus || 0) + (o.connections || 0) + (o.rewards || 0); } }
   let pts = base;
   if (group !== 'day') {
     const m = new Map();
@@ -231,6 +243,7 @@ function buildPoints(dayRows, cur) {
       const k = group === 'week' ? weekStart(b.date) : b.date.slice(0, 7) + '-01';
       const t = m.get(k) || emptyPt(k);
       for (const s of SERIES) t[s.id] += b[s.id];
+      for (const c of Object.keys(b.cx || {})) { const o = (t.cx || (t.cx = {}))[c] || (t.cx[c] = {}); for (const id of CUR_MONEY) o[id] = (o[id] || 0) + (b.cx[c][id] || 0); }
       if (b.held) t.held = true;
       m.set(k, t);
     }
@@ -238,8 +251,12 @@ function buildPoints(dayRows, cur) {
   }
   const totals = Object.fromEntries(SERIES.map((s) => [s.id, pts.reduce((a, p) => a + p[s.id], 0)]));
   if (view.cumulative) {
-    const run = {};
-    pts = pts.map((p) => { const q = { date: p.date, held: p.held }; for (const s of SERIES) { run[s.id] = (run[s.id] || 0) + p[s.id]; q[s.id] = run[s.id]; } return q; });
+    const run = {}, runCx = {};
+    pts = pts.map((p) => {
+      const q = { date: p.date, held: p.held }; for (const s of SERIES) { run[s.id] = (run[s.id] || 0) + p[s.id]; q[s.id] = run[s.id]; }
+      if (p.cx) { for (const c of Object.keys(p.cx)) { const o = runCx[c] || (runCx[c] = {}); for (const id of CUR_MONEY) o[id] = (o[id] || 0) + (p.cx[c][id] || 0); } q.cx = JSON.parse(JSON.stringify(runCx)); }
+      return q;
+    });
   }
   return { pts, group, totals, auto };
 }
@@ -323,6 +340,11 @@ function lastStrip(pts, vis, cur, group) {
     `<button class="lx" data-close="1" aria-label="Hide last day" title="Hide">✕</button></div>`;
 }
 
+// The exact amounts of each currency (never one converted number): "$12.00", "CA$1.20", "£0.50", one per line.
+function cxLines(p, id) {
+  const cs = Object.keys(p.cx || {}).filter((c) => (p.cx[c][id] || 0) !== 0).sort((a, b) => usdish(p.cx[b][id], b) - usdish(p.cx[a][id], a));
+  return cs.length ? cs.map((c) => `<span>${esc(fmtMoney(p.cx[c][id], c))}</span>`).join('') : '<span>—</span>';
+}
 function wireChart(pts, vis, cur, group) {
   const box = $('#chartbox'); if (!box || !pts.length) return;
   const capline = box.parentNode && box.parentNode.querySelector('.capline');
@@ -340,7 +362,7 @@ function wireChart(pts, vis, cur, group) {
     if (hov) hov.innerHTML = vis.map((s) => `<circle cx="${cx.toFixed(1)}" cy="${Y(s, p[s.id]).toFixed(1)}" r="3.5" fill="var(--s-${s.id})" stroke="var(--panel)" stroke-width="1.5"/>`).join('');
     const label = group === 'week' ? `Week of ${fmtDate(p.date)}` : fmtDate(p.date, group);
     tip.innerHTML = `<div class="d">${esc(label)}${view.cumulative ? ' · cumulative' : ''}</div>` +
-      vis.map((s) => `<div><span><i style="background:var(--s-${s.id})"></i> ${esc(s.label)}</span><b>${fmtSeries(s, p[s.id], cur)}</b></div>`).join('') +
+      vis.map((s) => `<div><span><i style="background:var(--s-${s.id})"></i> ${esc(s.label)}</span>${s.money && cur === 'ALL' ? `<b class="cxs">${cxLines(p, s.id)}</b>` : `<b>${fmtSeries(s, p[s.id], cur)}</b>`}</div>`).join('') +
       (p.held ? `<div class="hnote"><b>Held values</b>Amazon's report is currently missing ${group === 'day' ? 'this day' : 'a day in this period'}. These numbers are the last ones we saw, not confirmed by Amazon yet. They are replaced as soon as Amazon restores the data (usually within a day).</div>` : '');
     tip.hidden = false;
     const px = (cx / W) * r.width;
@@ -538,7 +560,6 @@ function kpiHTML(dayRows) {
 
 function chartHTML(dayRows) {
   const cur = chartCurrency(dayRows);
-  const curs = chartCurrencies(dayRows);
   const { pts, group, totals, auto } = buildPoints(dayRows, cur);
   const vis = chartSeries();
   const multiCur = new Set(dayRows.map((r) => r.cur)).size > 1;
@@ -546,13 +567,12 @@ function chartHTML(dayRows) {
   const caption = chartIsTag()
     ? `Daily clicks of the selected tags (exact, from Amazon). Amazon does not report earnings or orders per day for a tag: those are only period totals, shown in the cards.`
     : vis.length
-      ? `${esc(vis[0].label)}${vis[0].money ? (cur === 'ALL' ? ' (all currencies, converted to USD at rough rates: ~ marks an estimate, not an Amazon figure)' : ` (${cur})`) : ''}. Other series are scaled to their own peak so shapes stay readable; hover for exact values.`
+      ? `${esc(vis[0].label)}${vis[0].money ? (cur === 'ALL' ? ' (the chosen currencies drawn together in ~USD at rough rates: ~ marks an estimate, not an Amazon figure; hover for each currency\'s exact amount)' : ` (${cur})`) : ''}. Other series are scaled to their own peak so shapes stay readable; hover for exact values.`
       : '';
   return `<section class="panel">
     <div class="panelhead">
       <div class="legend">${legend || '<span class="muted small">No metric selected: use the Metrics menu.</span>'}</div>
       <div class="opts">
-        ${curs.length > 1 ? `<select id="ccur" aria-label="Currency of the chart" title="The chart shows one currency at a time. Amounts in other currencies are in the header card and the tables."><option value="ALL" ${cur === 'ALL' ? 'selected' : ''}>All currencies (~USD)</option>${curs.map((c) => `<option value="${c}" ${c === cur ? 'selected' : ''}>${c}</option>`).join('')}</select>` : ''}
         <label><input type="checkbox" id="cum" ${view.cumulative ? 'checked' : ''}> Cumulative</label>
         <select id="grp" aria-label="Group by">${['day', 'week', 'month'].map((g) => `<option value="${g}" ${g === group ? 'selected' : ''}>${g[0].toUpperCase() + g.slice(1)}${g === auto && !view.group ? ' (auto)' : ''}</option>`).join('')}</select>
       </div>
@@ -674,6 +694,19 @@ function tagsDropdownHTML() {
     : '';
   const help = (view.tags ? `Tag filter on: ${view.tags.size} of ${total} tags. ` : 'Tags filter. ') + 'The cards, total income and countries table show only the selected tags. The chart shows their daily clicks. Amazon does not report earnings or orders per day for a tag, so the Dates tab shows all tags.';
   return `<div class="dd"><button type="button" class="ddsum ${view.tags ? 'active' : ''}" data-dd="tags" aria-haspopup="true" aria-expanded="${view.tagOpen}" title="Filters the cards, total income, countries table and Tracking IDs"><span class="muted small">TAGS</span> ${esc(label)} ${CHEVRON}</button>${menu}</div><span class="help taghelp ${view.tags ? 'pulse' : ''}" tabindex="0" data-tip="${esc(help)}">?</span>`;
+}
+
+// Currencies: same look as "All countries". Which currencies the chart includes (only shown when you earn in more than one).
+function currencyDropdownHTML(dayRows) {
+  const all = chartCurrencies(dayRows); if (all.length < 2) return '';
+  const sel = chartCurSet(dayRows);
+  const items = all.map((c) => `<div class="mi"><input type="checkbox" data-cur="${c}" aria-label="Add or remove ${esc(curName(c))}" ${sel.includes(c) ? 'checked' : ''}><button type="button" class="lonly" data-curonly="${c}" title="Show only ${esc(curName(c))}"><span class="cursym">${esc(curSymbol(c))}</span><span>${esc(curName(c))}</span></button><b class="muted">${c}</b></div>`).join('');
+  const menu = view.curOpen
+    ? `<div class="menu menuright" role="group" aria-label="Currencies"><div class="mi allrow"><input type="checkbox" data-curallbox="1" aria-label="Select or clear all currencies" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-curall="1" title="Show all currencies"><span><b>All currencies</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}<p class="muted small cxnote">Several currencies are drawn together in ~USD at rough rates (an estimate). The tooltip always shows each currency's exact amount.</p></div>`
+    : '';
+  const label = sel.length === all.length ? 'All currencies' : sel.length === 1 ? curName(sel[0]) : `${sel.length} currencies`;
+  const chips = sel.length <= 4 ? `<span class="dots curdots">${sel.map((c) => `<span class="cursym">${esc(curSymbol(c))}</span>`).join('')}</span>` : '';
+  return `<div class="dd"><button type="button" class="ddsum" data-dd="curs" aria-haspopup="true" aria-expanded="${!!view.curOpen}" title="Which currencies the chart includes">${chips}${esc(label)} ${CHEVRON}</button>${menu}</div>`;
 }
 
 // Multi-select dropdown (checkboxes) next to the period select: which series the chart shows.
@@ -882,11 +915,15 @@ function ensureAuthPolling() {
 // view.tour = index of the step on screen, or null. Steps whose target is not on screen are skipped.
 const TOUR = [
   { sel: '#storefilter', title: 'Your stores', text: () => (isProNow() ? 'Every store of your Associates account. Click the menu to see one store, or tick several to combine them. The countries follow your choice.' : 'Your store, with all its countries. Free includes one store; Pro and Lifetime add all your other stores, with a menu to switch or combine them.') },
-  { sel: '.toolbar .when', title: 'Dates', text: () => 'Today, the last 7 or 30 days, quarters, years, or any dates you choose with the calendar.' },
+  { sel: '.toolbar .when', title: 'Dates, metrics and currencies', text: () => 'Pick the period (today, 7 or 30 days, quarters, years, or your own dates), choose what the chart draws with Metrics, and, when you earn in several currencies, choose which ones to include. Several currencies are drawn together in ~USD at rough rates; hover the chart for each currency\'s exact amount.' },
   { sel: '.locwrap', title: 'Countries and tags', text: () => (isProNow() ? 'Choose the countries to show. The Tags filter narrows everything to the tracking IDs you pick. Each filter only offers what the one before it leaves.' : 'Choose the countries to show. The Tags filter (Pro) narrows everything to one tracking ID, with the real daily clicks per tag.') },
-  { sel: '.brow.r2', title: 'Alerts and settings', text: () => (isProNow() ? 'The bell lists new orders, commissions, bonuses and Creator Rewards tiers (and sends desktop pop-ups if you turn them on). Settings: countries, stores, alerts, your plan, and this tour again.' : 'The bell lists new orders, sign-outs and Amazon report problems (Pro adds every alert type and desktop pop-ups). Settings: countries, stores, alerts, your plan, and this tour again. Locked items show a lock: try them all with a 14-day Pro trial.') }
+  { sel: '.deskchk', open: 'notif', title: 'Desktop alerts', text: () => (!isProNow()
+      ? 'The bell lists new orders, sign-outs and Amazon report problems. Desktop pop-ups, even with this window closed, are included in Pro: start the free trial to turn them on. Settings has the rest, and this tour again.'
+      : (notifyConf().desktop
+        ? 'Desktop alerts are on. You will get a pop-up on your computer for every new order or commission, even when this window is closed. More choices are in Settings.'
+        : 'Tick "Desktop alerts", highlighted above, to get a pop-up on your computer for every new order or commission, even when this window is closed. Chrome asks for permission once.')) }
 ];
-const tourVisible = (st) => { if (!st.sel) return true; const el = document.querySelector(st.sel); return !!(el && el.getBoundingClientRect && (el.getBoundingClientRect().width > 0)); };
+const tourVisible = (st) => { if (st.open) return !!document.querySelector('#bell'); if (!st.sel) return true; const el = document.querySelector(st.sel); return !!(el && el.getBoundingClientRect && (el.getBoundingClientRect().width > 0)); };
 function endTour(done = true) { view.tour = null; if (done && !settings.tourDone) saveSettings({ tourDone: true }, false); const t = $('#tour'); if (t) t.innerHTML = ''; }
 function startTour() { closePops(); view.upsell = null; view.showSettings = false; view.tour = 0; render(); }
 function drawTour() {
@@ -895,8 +932,10 @@ function drawTour() {
   const steps = TOUR.filter(tourVisible);
   if (!steps.length || view.tour >= steps.length) { endTour(); return; }
   const i = view.tour, st = steps[i], last = i === steps.length - 1;
-  host.innerHTML = `<div class="tcatch"></div><div id="tourspot" class="tspot"></div><div id="tourcard" class="tcard" role="dialog" aria-label="Tour: ${esc(st.title)}">
-    <div class="tstep">${i + 1} / ${steps.length}</div><h3>${esc(st.title)}</h3><p>${esc(st.text())}</p>
+  const askTick = !!st.open && isProNow() && !notifyConf().desktop;          // the step that asks the person to tick a box: they must be able to click it
+  const demo = st.open ? `<div class="tdemo" aria-hidden="true"><span class="fakebox ${askTick ? 'loop' : 'on'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span><span>Desktop alerts</span></div>` : '';
+  host.innerHTML = `${st.open ? '' : '<div class="tcatch"></div>'}<div id="tourspot" class="tspot${askTick ? ' pulse' : ''}"></div>${askTick ? '<div id="tourhand" class="thand" aria-hidden="true">👆</div>' : ''}<div id="tourcard" class="tcard" role="dialog" aria-label="Tour: ${esc(st.title)}">
+    <div class="tstep">${i + 1} / ${steps.length}</div><h3>${esc(st.title)}</h3><p>${esc(st.text())}</p>${demo}
     <div class="tbtns"><button type="button" class="linkbtn" data-tour="skip">${last ? 'Close' : 'Skip tour'}</button><span>${i ? '<button type="button" data-tour="back">Back</button>' : ''}${last ? `${!isProNow() && trialAvailable() ? '<button type="button" data-tour="trial">Start my free trial</button>' : ''}<button type="button" class="primary" data-tour="skip">Done</button>` : `<button type="button" class="primary" data-tour="next">Next</button>`}</span></div></div>`;
   const spot = $('#tourspot'), card = $('#tourcard'), el = st.sel ? document.querySelector(st.sel) : null;
   if (el && el.scrollIntoView && !el.closest('.top')) el.scrollIntoView({ block: 'center' });
@@ -906,8 +945,9 @@ function drawTour() {
   const cw = card.offsetWidth || 320, ch = card.offsetHeight || 160, W = window.innerWidth, H = window.innerHeight;
   let left, top;
   if (!r) { left = (W - cw) / 2; top = Math.max(16, (H - ch) / 2); }
-  else { left = Math.min(Math.max(12, r.left + r.width / 2 - cw / 2), W - cw - 12); top = r.bottom + pad + 12 + ch <= H ? r.bottom + pad + 12 : Math.max(12, r.top - pad - 12 - ch); }
+  else { left = Math.min(Math.max(12, r.left + r.width / 2 - cw / 2), W - cw - 12); const gap = askTick ? 40 : 12; top = r.bottom + pad + gap + ch <= H ? r.bottom + pad + gap : Math.max(12, r.top - pad - gap - ch); }
   card.style.left = left + 'px'; card.style.top = top + 'px';
+  const hand = $('#tourhand'); if (hand && r) { hand.style.left = Math.max(8, r.left + 10) + 'px'; hand.style.top = (r.bottom + 2) + 'px'; }
 }
 // the very first time (and only when the dashboard is really on screen): offer the tour
 function maybeStartTour() {
@@ -989,8 +1029,8 @@ function settingsHTML() {
 // ---- popovers: period list, date picker, notifications ----------------------------------------------
 const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 const ICON_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
-const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = view.storeOpen = view.tagOpen = false; };
-const anyPopOpen = () => view.ddOpen || view.perOpen || view.calOpen || view.notifOpen || view.locOpen || view.storeOpen || view.tagOpen;
+const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = view.storeOpen = view.tagOpen = view.curOpen = false; };
+const anyPopOpen = () => view.ddOpen || view.perOpen || view.calOpen || view.notifOpen || view.locOpen || view.storeOpen || view.tagOpen || view.curOpen;
 const fmtDay = (s, withYear) => parseYmd(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}) });
 const rangeText = (a, b, withYear = true) => (a === b ? fmtDay(a, withYear) : `${fmtDay(a, withYear)} – ${fmtDay(b, withYear)}`);
 
@@ -1100,7 +1140,7 @@ function mainHTML() {
   const loadingOnly = !dayRows.length && isLoading();
   const cur = chartCurrency(cRows);
   const metricsDD = metricsDropdownHTML(buildPoints(cRows, cur).totals, cur);
-  const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}</div><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div></div>`;
+  const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}${currencyDropdownHTML(cRows)}</div><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div></div>`;
   const siteErr = Object.entries(status.siteErrors || {}).filter(([loc]) => selLocales().includes(loc))
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
   const err = planBannerHTML() + siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
@@ -1112,7 +1152,7 @@ function mainHTML() {
 // Filters are remembered: closing the popup and reopening it brings back the same view.
 let savedView = '';
 function persistView() {
-  const v = { period: view.period, from: view.from, to: view.to, sub: view.sub, metrics: [...view.metrics], group: view.group, chartCur: view.chartCur || null, cumulative: view.cumulative, hideLast: !!view.hideLast, sel: view.sel ? [...view.sel] : null, stores: view.stores ? [...view.stores] : null, tags: view.tags ? [...view.tags] : null };
+  const v = { period: view.period, from: view.from, to: view.to, sub: view.sub, metrics: [...view.metrics], group: view.group, curSel: view.curSel ? [...view.curSel] : null, cumulative: view.cumulative, hideLast: !!view.hideLast, sel: view.sel ? [...view.sel] : null, stores: view.stores ? [...view.stores] : null, tags: view.tags ? [...view.tags] : null };
   const j = JSON.stringify(v);
   if (j === savedView) return;
   savedView = j;
@@ -1126,7 +1166,7 @@ function restoreView(v) {
   const ids = SERIES.map((x) => x.id);
   if (Array.isArray(v.metrics)) view.metrics = new Set(v.metrics.filter((m) => ids.includes(m)));
   if (['day', 'week', 'month'].includes(v.group)) view.group = v.group;
-  if (typeof v.chartCur === 'string' && /^[A-Z]{3}$/.test(v.chartCur)) view.chartCur = v.chartCur;
+  if (Array.isArray(v.curSel)) { const c = v.curSel.filter((x) => typeof x === 'string' && /^[A-Z]{3}$/.test(x)); view.curSel = c.length ? new Set(c) : null; }
   view.cumulative = !!v.cumulative; view.hideLast = !!v.hideLast;
   if (Array.isArray(v.sel)) { const l = v.sel.filter((c) => enabledCountries().includes(c)); view.sel = l.length && l.length < enabledCountries().length ? new Set(l) : null; }
   else if ('sel' in v) view.sel = null;
@@ -1136,6 +1176,11 @@ function restoreView(v) {
 }
 
 function render() {
+  // the tour step about desktop alerts points into the notifications panel: open it for that step, close it afterwards
+  { const stp = view.tour != null ? TOUR.filter(tourVisible)[view.tour] : null, need = !!(stp && stp.open === 'notif');
+    if (need && !view.notifOpen) { closePops(); view.notifOpen = true; view.notifFrom = notif.readAt; }
+    else if (!need && view.tourNotif) view.notifOpen = false;
+    view.tourNotif = need; }
   if (!signedIn()) { view.showSettings = false; view.tour = null; }
   { const b = document.body; if (b && b.classList && b.classList.toggle) b.classList.toggle('gate-mode', !signedIn()); const ft = $('#pagefooter'); if (ft) { ft.hidden = signedIn(); ft.innerHTML = signedIn() ? '' : footerHTML(); } }
   pruneTags();
@@ -1305,6 +1350,8 @@ document.addEventListener('click', async (e) => {
   else if (q('#done')) { view.showSettings = false; render(); requestLoad(); }
   else if (q('#reset')) { await saveSettings({ ...DEFAULTS }, false); view.sel = null; view.period = DEFAULTS.period; view.from = view.to = view.sub = view.group = null; view.cumulative = false; view.hideLast = false; view.metrics = new Set(['earnings', 'clicks', 'ordered']); render(); }
   else if (q('[data-sub]')) { view.sub = q('[data-sub]').dataset.sub; render(); requestLoad(); }
+  else if (q('[data-curall]')) { view.curSel = null; render(); }
+  else if (q('[data-curonly]')) { view.curSel = new Set([q('[data-curonly]').dataset.curonly]); render(); }
   else if (q('[data-all]')) { setSel(allowedSel()); }
   else if (q('[data-only]')) { setSel(new Set([q('[data-only]').dataset.only])); }
   else if (q('[data-cq]')) {
@@ -1327,9 +1374,9 @@ document.addEventListener('click', async (e) => {
   else if (q('[data-goto]')) { setSel(new Set([q('[data-goto]').dataset.goto])); }
   else if (q('[data-dd]')) {
     const k = q('[data-dd]').dataset.dd;
-    const was = k === 'metrics' ? view.ddOpen : k === 'period' ? view.perOpen : k === 'locs' ? view.locOpen : k === 'store' ? view.storeOpen : k === 'tags' ? view.tagOpen : view.calOpen;
+    const was = k === 'metrics' ? view.ddOpen : k === 'period' ? view.perOpen : k === 'locs' ? view.locOpen : k === 'store' ? view.storeOpen : k === 'tags' ? view.tagOpen : k === 'curs' ? view.curOpen : view.calOpen;
     closePops();
-    if (!was) { if (k === 'metrics') view.ddOpen = true; else if (k === 'period') view.perOpen = true; else if (k === 'locs') view.locOpen = true; else if (k === 'store') view.storeOpen = true; else if (k === 'tags') { view.tagOpen = true; requestLoad(); } else { view.calOpen = true; openCal(); } }
+    if (!was) { if (k === 'metrics') view.ddOpen = true; else if (k === 'period') view.perOpen = true; else if (k === 'locs') view.locOpen = true; else if (k === 'store') view.storeOpen = true; else if (k === 'curs') view.curOpen = true; else if (k === 'tags') { view.tagOpen = true; requestLoad(); } else { view.calOpen = true; openCal(); } }
     render();
   } else if (q('[data-pick]')) {
     const id = q('[data-pick]').dataset.pick;
@@ -1366,8 +1413,14 @@ document.addEventListener('change', async (e) => {
     render();
   } else if (t.id === 'cum') { view.cumulative = t.checked; render(); }
   else if (t.id === 'grp') { view.group = t.value; render(); }
-  else if (t.id === 'ccur') { view.chartCur = t.value; render(); }
-  else if (t.dataset.lallbox) {
+  else if (t.dataset.curallbox) {
+    const all = chartCurrencies(chartRows());
+    view.curSel = t.checked ? null : new Set(all.slice(0, 1)); render();                    // unticking "All" keeps the main currency
+  } else if (t.dataset.cur) {
+    const all = chartCurrencies(chartRows()), cur = new Set(chartCurSet(chartRows()));
+    if (t.checked) cur.add(t.dataset.cur); else if (cur.size > 1) cur.delete(t.dataset.cur);       // at least one currency stays
+    view.curSel = all.every((c) => cur.has(c)) ? null : cur; render();
+  } else if (t.dataset.lallbox) {
     setSel(t.checked ? allowedSel() : new Set(allowedLocales().slice(0, 1)), true);
   } else if (t.dataset.loc) {
     const cur = new Set(selLocales());
