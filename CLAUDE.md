@@ -10,6 +10,7 @@ Working notes for Claude Code sessions in this repository. Read this first.
 - **Keep the docs current**: when behaviour changes, update `docs/CALCULATIONS.md`, `docs/ARCHITECTURE.md`,
   `docs/AMAZON_REPORT_GAP.md` as relevant, add a line to `docs/CHANGELOG.md`, and mirror the user-facing summary in the
   owner's folder `../docs/` (outside this repo, plain-language).
+- **Rebuild the website demo after EVERY extension change**: `node tools/build-demo.js "C:/Perso/EBLYN/Projects/eblyn.com/Affilyatics/demo"` (it copies popup.js/css, plan.js, shared.js into the site's demo), check it at https://eblyn.local/Affilyatics/demo/app.html?full=1&plan=pro, then commit and push the website repo (`git push git@github.com:nebylba/eblyn.com.git main`, stage only `Affilyatics/`). The owner then uploads the demo folder.
 - When the owner says "brainstorm" or "don't code yet", discuss and propose only.
 - Git "dubious ownership" error (folder owned by Administrators): do **not** edit global git config. Use
   `git -c safe.directory=C:/Perso/EBLYN/Projects/amazonytics/Affilyatics.com <command>` per command.

@@ -600,7 +600,7 @@ function locsDropdownHTML() {
     ? `<div class="menu menuright" role="group" aria-label="Countries"><div class="mi allrow"><input type="checkbox" data-lallbox="1" aria-label="Select or clear all countries" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-all="1" title="Show all countries"><span><b>All countries</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}${lockedSet.size ? `<div class="msep"></div>${[...lockedSet].map((c) => `<div class="mi locked" data-lock="stores" title="Your other stores sell here. Included in Pro and Lifetime."><span class="lockrow">${flagSVG(c)}<span>${esc(LOCALES[c].label)}</span></span>${PRO_PILL}</div>`).join('')}` : ''}</div>`
     : '';
   const flags = sel.length === all.length ? 'All countries' : sel.length === 1 ? LOCALES[sel[0]].label : `${sel.length} countries`;
-  const shown = sel.length <= 5 ? sel.map((c) => flagSVG(c)).join('') : '';
+  const shown = sel.slice(0, 4).map((c) => flagSVG(c)).join('') + (sel.length > 4 ? `<span class="flagmore">+${sel.length - 4}</span>` : '');       // up to 4 flags, then "+N"
   return `<div class="dd"><button type="button" class="ddsum" data-dd="locs" aria-haspopup="true" aria-expanded="${view.locOpen}"><span class="dots flags">${shown}</span>${esc(flags)} ${CHEVRON}</button>${menu}</div>`;
 }
 
