@@ -989,14 +989,16 @@ function planHeadHTML() {
     <div class="thead"><span class="l">Your plan</span><span class="big">${esc(w.title)}</span><span class="psub">${esc(sub)}</span></div>
     <div class="phbody">
       <p class="phline">${esc(w.line)}</p>
-      <div class="phacct" title="The account this browser is connected to">${avatarHTML('md')}<span class="phwho">${who}<span>Signed in as <b>${mail}</b> <button type="button" class="linkbtn" id="signout">Sign out</button></span></span></div>
-      <div class="planbtns">${trialBtn}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${pro && paid ? '' : trialBtn ? '' : 'class="primary"'}>${pro ? 'Manage plan' : 'See plans'}</button><button type="button" id="planrefresh" ${busy ? 'disabled' : ''} title="Ask the license server again">Check again</button></div>
+      <div class="phrow">
+        <div class="phacct" title="The account this browser is connected to">${avatarHTML('md')}<span class="phwho">${who}<span>Signed in as <b>${mail}</b> <button type="button" class="linkbtn" id="signout">Sign out</button></span></span></div>
+        <div class="planbtns">${trialBtn}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${pro && paid ? '' : trialBtn ? '' : 'class="primary"'}>${pro ? 'Manage plan' : 'See plans'}</button><button type="button" id="planrefresh" ${busy ? 'disabled' : ''} title="Ask the license server again">Check again</button></div>
+      </div>
       ${view.planMsg ? `<p class="small phmsg" style="color:${view.planMsg.err ? 'var(--bad)' : 'var(--text)'}">${esc(view.planMsg.text)}</p>` : ''}
     </div>
     ${pro ? '' : `<div class="phadds"><div class="muted small">Pro and Lifetime add:</div><ul class="planlist">${adds.map((a) => `<li>${esc(a)}</li>`).join('')}</ul></div>`}
     <div class="phfoot">${keyRow}
-      <label class="nt plantele"><input type="checkbox" id="shareusage" ${settings.shareUsage ? 'checked' : ''}><span>Share anonymous usage <span class="muted small">(off by default: app version, plan and a few counters; never earnings, store names or tags. <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>)</span></span></label>
-      <span class="muted small">${license.checkedAt ? `Plan checked ${esc(timeAgo(license.checkedAt))}.` : 'Plan not checked yet.'} ${license.lastError ? `Last attempt failed (${esc(planMessage(license.lastError))})` : ''}</span>
+      <div class="phline2"><label class="nt plantele" title="Off by default. Sends only the app version, your plan and a few counters such as how many stores you have. Never earnings, store names or tags."><input type="checkbox" id="shareusage" ${settings.shareUsage ? 'checked' : ''}><span>Share anonymous usage <span class="muted small">(off by default · <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>)</span></span></label>
+      <span class="muted small phchk">${license.checkedAt ? `Plan checked ${esc(timeAgo(license.checkedAt))}.` : 'Plan not checked yet.'} ${license.lastError ? `Last attempt failed (${esc(planMessage(license.lastError))})` : ''}</span></div>
     </div>
   </div>`;
 }
@@ -1227,7 +1229,7 @@ function render() {
   $('#bell').title = unread ? `${unread} new notification${unread > 1 ? 's' : ''}` : 'Notifications';
   $('#bell').setAttribute('aria-expanded', String(view.notifOpen));
   $('#notifpanel').innerHTML = view.notifOpen ? notifPanelHTML() : '';
-  const sf = $('#storefilter'); if (sf) sf.innerHTML = status.signedOut || !signedIn() ? '' : (view.showSettings ? '' : storeFilterHTML()) + acctChipHTML();
+  const sf = $('#storefilter'); if (sf) sf.innerHTML = status.signedOut || !signedIn() ? '' : view.showSettings ? '' : storeFilterHTML() + acctChipHTML();
   $('#headtotal').innerHTML = status.signedOut || !signedIn() ? '' : view.showSettings ? planHeadHTML() : totalCardHTML(tagAgg() || collect('day'));
   maybeStartTour();
   const main = $('#main');

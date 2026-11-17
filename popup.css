@@ -534,20 +534,23 @@ body.gate-mode #main { flex: 1; }
 .phcard .psub { font-size: 12px; color: var(--muted); line-height: 1.3; }
 .phbody { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .phline { margin: 0; font-size: 14px; line-height: 1.35; }
+.phrow { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
 .phacct { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; color: var(--muted); min-width: 0; }
 .phwho { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .phname { color: var(--text); font-weight: 600; font-size: 14px; }
-.phacct b { color: var(--text); font-weight: 600; word-break: break-all; }
 .phacct .linkbtn { margin-left: 6px; }
-.phcard .planbtns { margin: 2px 0 0; }
-.phcard .planbtns button { padding: 6px 12px; }
+.phcard .planbtns { margin: 0; flex-wrap: nowrap; }
+.phcard .planbtns button { padding: 6px 12px; white-space: nowrap; }
 .phmsg { margin: 2px 0 0; }
 .phadds { min-width: 0; }
 .phadds .planlist { margin: 4px 0 0; padding-left: 16px; columns: 2; column-gap: 16px; font-size: 12.5px; line-height: 1.35; }
-.phfoot { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+.phfoot { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
 .phfoot .plankey { margin: 0; }
 .phfoot .plankey input { padding: 6px 10px; }
-.phfoot .plantele { margin: 0; font-size: 13px; }
+.phline2 { display: flex; align-items: center; justify-content: space-between; gap: 4px 16px; flex-wrap: wrap; }
+.phfoot .plantele { margin: 0; font-size: 13px; align-items: center; }
+.phchk { white-space: nowrap; }
+.phcard { padding-top: 8px; padding-bottom: 8px; }
 .avatar { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: hsl(var(--avh, 30) 55% 38%); color: #fff; font-weight: 700; user-select: none; }
 .avatar.md { width: 40px; height: 40px; font-size: 18px; } .avatar.sm { width: 20px; height: 20px; font-size: 11px; }
 .avatar .ini { line-height: 1; } .avatar .avimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
