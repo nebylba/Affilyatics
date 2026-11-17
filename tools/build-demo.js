@@ -24,5 +24,15 @@ sub('src="icons/logo-light.svg"', 'src="../assets/logo-light.svg"');
 sub('src="icons/logo-dark.svg"', 'src="../assets/logo-dark.svg"');
 sub('<body>', '<body>\n<div class="demobar"><b>Live demo</b> with demo data. Everything works: try the Store, Countries and Tags filters, the period, the tabs, the bell and Settings. <a href="#" class="demotour" onclick="window.startAffilyaticsTour &amp;&amp; startAffilyaticsTour(); return false">Take the tour</a> <span class="demoplan">View as <a href="?plan=free&full=1">Free</a> · <a href="?full=1">Pro</a></span> <a class="demobtn" href="../#plans" target="_top">Try it free for 14 days</a></div>');
 sub('<script src="shared.js"></script>\n<script src="plan.js"></script>\n<script src="popup.js"></script>', '<script src="demo.js"></script>\n<script src="app/shared.js"></script>\n<script src="app/plan.js"></script>\n<script src="app/popup.js"></script>\n<script src="demo-ui.js"></script>');
+// Cache busting: a browser that visited the demo before must not keep showing the old extension files. Every build stamps a new version
+// on the files app.html loads and on the iframe address in the site pages around it.
+const v = Math.floor(Date.now() / 1000);
+h = h.replace(/(app\/(?:theme|shared|plan|popup)\.js|app\/popup\.css|demo\.js|demo\.css|demo-ui\.js)(\?v=\d+)?"/g, (m, f) => f + '?v=' + v + '"');
 fs.writeFileSync(path.join(demo, 'app.html'), h);      // demo/index.html is the website page around it (header, footer, frame): hand-written, never overwritten
+for (const page of [path.join(demo, '..', 'index.html'), path.join(demo, 'index.html')]) {
+  try {
+    const x = fs.readFileSync(page, 'utf8'), y = x.replace(/(src="(?:demo\/)?app\.html\?full=1)(&v=\d+)?"/, (m, a2) => a2 + '&v=' + v + '"');
+    if (y !== x) fs.writeFileSync(page, y);
+  } catch (e) { /* the site pages are optional */ }
+}
 console.log('Demo built in ' + demo);
