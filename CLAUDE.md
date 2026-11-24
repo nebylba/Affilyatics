@@ -10,11 +10,11 @@ Working notes for Claude Code sessions in this repository. Read this first.
 - **Keep the docs current**: when behaviour changes, update `docs/CALCULATIONS.md`, `docs/ARCHITECTURE.md`,
   `docs/AMAZON_REPORT_GAP.md` as relevant, add a line to `docs/CHANGELOG.md`, and mirror the user-facing summary in the
   owner's folder `../docs/` (outside this repo, plain-language).
-- **Rebuild the website demo after EVERY extension change**: `node tools/build-demo.js "C:/Perso/EBLYN/Projects/eblyn.com/Affilyatics/demo"` (it copies popup.js/css, plan.js, shared.js into the site's demo), check it at https://eblyn.local/Affilyatics/demo/app.html?full=1&plan=pro, then commit and push the website repo (`git push git@github.com:nebylba/eblyn.com.git main`, stage only `Affilyatics/`). The owner then uploads the demo folder.
+- **Rebuild the website demo after EVERY extension change**: `node tools/build-demo.js "C:/Perso/EBLYN/Projects/Affilyatics.com/demo"` (it copies popup.js/css, plan.js, shared.js into the site's demo), check it at https://eblyn.local/Affilyatics/demo/app.html?full=1&plan=pro, then commit and push the website repo (`git push git@github.com:nebylba/eblyn.com.git main`, stage only `Affilyatics/`). The owner then uploads the demo folder.
 - When the owner says "brainstorm" or "don't code yet", discuss and propose only.
 - Git "dubious ownership" error (folder owned by Administrators): do **not** edit global git config. Use
   `git -c safe.directory=C:/Perso/EBLYN/Projects/amazonytics/Affilyatics.com <command>` per command.
-- The repo root is this folder (`Affilyatics.com`). The parent folder `amazonytics/` is not a repo; it holds the owner's
+- The repo root is this folder (`Affilyatics`, GitHub `nebylba/Affilyatics`, public). The parent folder `amazonytics/` is not a repo; it holds the owner's
   `docs/`, `designs/` (HTML mockups, not shipped) and the release zip `Affilyatics.com.zip` (made by the owner).
 
 ## No build, no test runner
@@ -71,5 +71,9 @@ stubbed `chrome.storage`. UI changes cannot be seen without loading the extensio
 
 `plan.js` (shared) + `license.js` (worker) + gating in `background.js` / `popup.js`. Read `docs/PLANS_AND_LICENSING.md` first.
 Locked UI carries `data-lock="<feature>"`; whatever you add that is Pro-only must be gated BOTH in the popup and in `load()`.
-The backend lives in the website repo (`eblyn.com/Affilyatics/_lib`, `api`, `admin`). Release zip: `python tools/package.py`.
+The backend lives in the website repo (private repo `nebylba/affilyatics.com`, local folder `C:/Perso/EBLYN/Projects/Affilyatics.com`: `_lib`, `api`, `admin`; rebuilt demo goes to its `demo/` folder; it deploys by itself, see its CLAUDE.md). Release zip: `python tools/package.py`.
 Demo for the website: `node tools/build-demo.js <site>/demo` (also copies `plan.js`).
+
+
+## Note (2026-11-24)
+The website and backend moved to their own repo (`nebylba/affilyatics.com`). `tools/set-env.py` and `plan.js` still point at `eblyn.com/Affilyatics/` and the old `eblyn.local`; they switch to `https://affilyatics.com/` (and `https://affilyatics.neb/` for local) in the go-live phase, together with the new production public key in `plan.js`.
