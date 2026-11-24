@@ -9,9 +9,9 @@ Everything to paste into the Developer Dashboard. Screenshots are in this folder
 - **Language:** English
 - **Short description** (manifest `description`, 132 characters max):
   Your Amazon Associates earnings in one click: all stores and countries, live up to today, with alerts. Free, with a Pro plan.
-- **Website:** https://eblyn.com/Affilyatics/  (after the move: https://affilyatics.com/)
+- **Website:** https://affilyatics.com/  (live since the move)
 - **Support email:** contact@eblyn.com  (after the move: contact@affilyatics.com)
-- **Privacy policy URL:** https://eblyn.com/Affilyatics/privacy/
+- **Privacy policy URL:** https://affilyatics.com/privacy/
 
 ## Detailed description
 Everything you need to know with one click.
@@ -70,7 +70,7 @@ Show the user's own Amazon Associates earnings and reports in one dashboard, wit
 ## Privacy practices tab (data disclosure)
 - Collects: **Personally identifiable information** (email address, name if Google sign-in, a Firebase user id: needed because an account is required), **Authentication information** (sign-in is done on the developer's web page with Google Firebase; the extension stores only a token made by the developer's server; license key if entered), **Website content / user activity**: none leaves the device (Amazon report data is processed locally and never transmitted to the developer).
 - Certify: data is not sold; not used for purposes unrelated to the item's single purpose; not used for creditworthiness or lending.
-- Data sent to the developer's server: account token, random installation id, extension version, plan, license key (if entered), anonymous counters (opt-in, off by default). Account creation (email or Google) happens on https://eblyn.com/Affilyatics/signin/ and is processed by Google Firebase.
+- Data sent to the developer's server: account token, random installation id, extension version, plan, license key (if entered), anonymous counters (opt-in, off by default). Account creation (email or Google) happens on https://affilyatics.com/signin/ and is processed by Google Firebase.
 
 ## Images
 - `screenshot-1-dashboard-dark.png`, `screenshot-2-dashboard-light.png`, `screenshot-3-free-plan.png` (1280x800)

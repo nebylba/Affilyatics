@@ -1,8 +1,8 @@
 """Points the extension at your local server (WAMP) or at production.
 
-    python tools/set-env.py local     -> http://eblyn.local/Affilyatics/...   (to test on your computer)
-    python tools/set-env.py test      -> https://eblyn.com/Affilyatics/...    (the shared test server, KEEPS the fixed extension id so Google sign-in works)
-    python tools/set-env.py prod      -> https://eblyn.com/Affilyatics/...    (what the store build must use: no fixed key)
+    python tools/set-env.py local     -> https://affilyatics.neb/...   (to test on your computer)
+    python tools/set-env.py test      -> https://lab.affilyatics.com/...    (the shared test server, KEEPS the fixed extension id so Google sign-in works)
+    python tools/set-env.py prod      -> https://affilyatics.com/...    (what the store build must use: no fixed key)
     python tools/set-env.py           -> shows the current setting
 
 Only the four addresses in PLAN_CFG (plan.js) change. After switching, reload the extension in chrome://extensions.
@@ -13,9 +13,9 @@ import re, sys, os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 P = os.path.join(ROOT, 'plan.js')
 ENVS = {
-    'local': 'http://eblyn.local/Affilyatics/',
-    'test': 'https://eblyn.com/Affilyatics/',
-    'prod': 'https://eblyn.com/Affilyatics/',
+    'local': 'https://affilyatics.neb/',
+    'test': 'https://lab.affilyatics.com/',
+    'prod': 'https://affilyatics.com/',
 }
 KEYS = [('api', 'api/v1'), ('signinUrl', 'signin/'), ('pricingUrl', '#plans'), ('privacyUrl', 'privacy/')]
 

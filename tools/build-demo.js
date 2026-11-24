@@ -1,5 +1,5 @@
 // Builds the website's LIVE DEMO from the REAL extension files, so the demo always is the real dashboard.
-// Usage: node tools/build-demo.js "C:/Perso/EBLYN/Projects/eblyn.com/Affilyatics/demo"
+// Usage: node tools/build-demo.js "C:/Perso/EBLYN/Projects/Affilyatics.com/demo"
 // It writes <demo>/app/* (popup.js, shared.js, plan.js, theme.js, popup.css) and <demo>/app.html (from popup.html).
 // demo.js (fake chrome + demo data), demo.css and demo-ui.js live in the website folder and are not touched.
 const fs = require('fs'), path = require('path');
@@ -10,7 +10,7 @@ const app = path.join(demo, 'app');
 fs.mkdirSync(app, { recursive: true });
 for (const f of ['popup.js', 'shared.js', 'theme.js']) fs.copyFileSync(path.join(root, f), path.join(app, f));
 // the website demo always points at the PUBLIC addresses, even while the extension is set to your local server
-fs.writeFileSync(path.join(app, 'plan.js'), fs.readFileSync(path.join(root, 'plan.js'), 'utf8').replace(/http:\/\/eblyn\.local\//g, 'https://eblyn.com/'));
+fs.writeFileSync(path.join(app, 'plan.js'), fs.readFileSync(path.join(root, 'plan.js'), 'utf8').replace(/https:\/\/(affilyatics\.neb|lab\.affilyatics\.com)\//g, 'https://affilyatics.com/'));
 // the website keeps the fonts once, in ../../assets/fonts
 fs.writeFileSync(path.join(app, 'popup.css'), fs.readFileSync(path.join(root, 'popup.css'), 'utf8').replace(/url\("fonts\//g, 'url("../../assets/fonts/'));
 
