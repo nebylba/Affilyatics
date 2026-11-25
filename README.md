@@ -30,12 +30,8 @@ Current version: see `manifest.json`.
 
 ## Install
 
-- **Chrome Web Store:** link coming as soon as the review is done.
-- **From source (anyone can do this):**
-  1. `git clone https://github.com/nebylba/Affilyatics.git`
-  2. Open `chrome://extensions`, enable *Developer mode*, press *Load unpacked* and pick the cloned folder.
-  3. Sign in to <https://affiliate-program.amazon.com> in the same Chrome profile, open the extension and press *Sign in*.
-  4. Sign in with **email and password** (create a free account on the sign-in page). *Sign in with Google* only works in the Chrome Web Store build, because Google must know the extension's id.
+- **Chrome Web Store:** <https://chromewebstore.google.com/detail/pikaeildnladnpjcakoglpheegipkokg> (approved; unlisted, anyone with the link can install it).
+- The source repository is private; the store build is the supported way to install.
 
 The extension talks to the hosted service at https://affilyatics.com for accounts and plans (the Free plan needs no payment). The server code is not part of this repository.
 
