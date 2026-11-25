@@ -4,6 +4,7 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-25
 
+- **Version 1.0 (V1)**: this release is labelled V1 for people: `manifest.json` has `version` 5.1.0 (the Chrome Web Store requires a number higher than the published 5.0.0, so it cannot go back to 1) and `version_name` 1.0, which Chrome shows on chrome://extensions. Git tag `v1.0.0`.
 - **Release 5.1.0** (new Web Store submission): everything listed below for 2026-11-25. New permissions to explain to the store: `gcm` and the 21 other Amazon Associates sites (see `store/LISTING.md`).
 - **Header**: the "N days left in Pro" / Upgrade button now spans the full width of the Refresh button (the Close X moved to the icon row, after the avatar).
 - **Simpler Settings, one screen**: no more statistics or big cards. Countries are compact flag chips (the countries where your stores sell first, the rest under "Other Amazon countries"), stores are one line each (flag, store id, account, badges), and the two blocks sit side by side when the window is wide.
