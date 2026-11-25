@@ -22,7 +22,7 @@ const view = { gmode: 'in', draft: { email: '', password: '' }, verify: null, ga
 // ---- plan (Free / Pro): what the stored license answer allows (see plan.js) ----------------------------
 const isProNow = () => planOf(license) === 'pro';
 const signedIn = () => accountOk(license);
-const isSepAccount = (a) => Object.values(SEPARATE_SITES).includes(a.base);
+const isSepAccount = (a) => !!a.base && a.base !== MAIN_SITE;       // an account on another country's Associates site (Pro)
 const setAccounts = (raw) => { rawAccounts = raw || []; accounts = isProNow() ? rawAccounts : rawAccounts.filter((a) => !isSepAccount(a)).slice(0, FEATURES.free.stores); };   // Free: one store (the main one)
 const hiddenStores = () => rawAccounts.filter((a) => !accounts.includes(a));
 const periodOk = (id) => isProNow() || FREE_PERIODS.includes(id);
@@ -197,7 +197,7 @@ function chartCurSet(dayRows) {
   const sel = view.curSel ? list.filter((c) => view.curSel.has(c)) : list;
   return sel.length ? sel : list;
 }
-// One currency: its exact amounts. Several: 'ALL' = they are drawn together, converted to US dollars at rough rates (marked with ~).
+// One currency: its exact amounts. Several: 'ALL' = they are drawn together, converted to US dollars at today's exchange rate (RATES, marked with ~).
 function chartCurrency(dayRows) {
   const s = chartCurSet(dayRows);
   return s.length > 1 ? 'ALL' : (s[0] || primaryCurrency(dayRows));
@@ -217,7 +217,7 @@ function buildPoints(dayRows, cur) {
   const idx = new Map(days.map((d, i) => [d, i]));
   const base = days.map((d) => emptyPt(d));
   const selC = new Set(chartCurSet(dayRows));
-  const fx = (c) => (cur === 'ALL' ? (selC.has(c) ? (APPROX_USD[c] || 1) : 0) : (c === cur ? 1 : 0));      // 'ALL': the chosen currencies, at rough US-dollar rates
+  const fx = (c) => (cur === 'ALL' ? (selC.has(c) ? (RATES.usd[c] || 1) : 0) : (c === cur ? 1 : 0));      // 'ALL': the chosen currencies, at today's US-dollar rates
   const cxAdd = (b, c, id, v) => { if (cur !== 'ALL' || !v) return; const o = (b.cx || (b.cx = {}))[c] || (b.cx[c] = {}); o[id] = (o[id] || 0) + v; };   // the exact amounts per currency (for the tooltip)
   for (const r of dayRows) {
     const i = idx.get(r.name); if (i == null) continue;
@@ -266,7 +266,7 @@ const fmtDate = (ds, group) => {
   if (group === 'month') return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
-// 'ALL' = every currency drawn together, converted to US dollars at ROUGH fixed rates (APPROX_USD): an estimate, so it is marked with "~".
+// 'ALL' = every currency drawn together, converted to US dollars at TODAY's exchange rate (RATES): not an Amazon figure, so it is marked with "~".
 const fmtCur = (v, cur, compact) => (cur === 'ALL' ? '~' + fmtMoney(v, 'USD', compact) : fmtMoney(v, cur, compact));
 const fmtSeries = (s, v, cur) => (s.money ? fmtCur(v, cur) : fmtNum(v));
 
@@ -570,7 +570,7 @@ function chartHTML(dayRows) {
   const caption = chartIsTag()
     ? `Daily clicks of the selected tags (exact, from Amazon). Amazon does not report earnings or orders per day for a tag: those are only period totals, shown in the cards.`
     : vis.length
-      ? `${esc(vis[0].label)}${vis[0].money ? (cur === 'ALL' ? ' (the chosen currencies drawn together in ~USD at rough rates: ~ marks an estimate, not an Amazon figure; hover for each currency\'s exact amount)' : ` (${cur})`) : ''}. Other series are scaled to their own peak so shapes stay readable; hover for exact values.`
+      ? `${esc(vis[0].label)}${vis[0].money ? (cur === 'ALL' ? ' in ~USD' : ` (${cur})`) : ''} <span class="help up" tabindex="0" data-tip="${esc((vis[0].money && cur === 'ALL' ? `The chosen currencies are converted to US dollars at today's exchange rate${RATES.real && RATES.date ? ` (${RATES.date})` : ''}. ~ marks a converted amount, not an Amazon figure. Hover the chart for the exact amount of each currency. ` : '') + 'Other series are scaled to their own peak so shapes stay readable; hover for exact values.')}">?</span>`
       : '';
   return `<section class="panel">
     <div class="panelhead">
@@ -649,7 +649,9 @@ const chartSeries = () => (chartIsTag() ? SERIES.filter((x) => x.id === 'clicks'
 const statOff = (label, id) => `<div class="stat" style="--c:var(--s-${id})"><i></i><span class="l">${label}</span><b><span class="muted">—</span></b></div>`;
 
 // ---- Store filter (under the logo) and Tags filter (after Countries) ---------------------------------
-const accountLabel = (a) => { const hit = Object.entries(SEPARATE_SITES).find(([, u]) => u === a.base); return hit ? `${LOCALES[hit[0]].label} account` : 'US account'; };
+// The flag of the country an account belongs to: the country of its own Associates site, or the US for the main account.
+const accountFlag = (a) => { const hit = Object.entries(allSites()).find(([, u]) => u === a.base); return flagSVG(hit ? hit[0] : 'US'); };
+const accountLabel = (a) => { const hit = Object.entries(allSites()).find(([, u]) => u === a.base); return hit && LOCALES[hit[0]] ? `${LOCALES[hit[0]].label} account` : 'US account'; };
 // the stores that actually have something in the countries on screen (the first one is the "main store")
 const shownStores = () => { const cur = new Set(selLocales()); const l = activeAccounts().filter((a) => (a.locales || []).some((x) => cur.has(x))); return l.length ? l : activeAccounts(); };
 function storeTotals() {
@@ -668,9 +670,9 @@ function storeFilterHTML() {
   const shown = shownStores(), main = shown[0] || accounts[0], others = shown.length - 1;
   const tot = storeTotals();
   const sel = new Set(view.stores ? [...view.stores] : accounts.map((a) => a.id));
-  const rows = accounts.map((a, ix) => `<div class="mi"><input type="checkbox" data-storebox="${esc(a.id)}" aria-label="Add or remove ${esc(a.id)}" ${sel.has(a.id) ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="${esc(a.id)}" title="Show only ${esc(a.id)}"><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span></button>${ix > 0 ? proMark() : ''}<b class="muted small">${esc(amountText(tot[a.id]))}</b></div>`).join('');
+  const rows = accounts.map((a, ix) => `<div class="mi"><input type="checkbox" data-storebox="${esc(a.id)}" aria-label="Add or remove ${esc(a.id)}" ${sel.has(a.id) ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="${esc(a.id)}" title="Show only ${esc(a.id)}"><span class="scrow"><b class="withflag">${accountFlag(a)}${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span></button>${ix > 0 ? proMark() : ''}<b class="muted small">${esc(amountText(tot[a.id]))}</b></div>`).join('');
   const menu = view.storeOpen
-    ? `<div class="menu storemenu" role="group" aria-label="Stores"><div class="mi allrow"><input type="checkbox" data-storeall="1" aria-label="Select or clear all stores" ${sel.size === accounts.length ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="" title="Show all stores"><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button><b class="muted">${sel.size}/${accounts.length}</b></div><div class="msep"></div>${rows}${hiddenStores().length ? `<div class="msep"></div>${hiddenStores().map((a) => `<div class="mi locked" data-lock="stores" title="We found this store in your account. It is included in Pro and Lifetime."><span class="scrow"><b>${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span>${PRO_PILL}</div>`).join('')}` : ''}<p class="muted small" style="margin:8px 8px 4px">Click a name to see only that store · tick boxes to combine.</p></div>`
+    ? `<div class="menu storemenu" role="group" aria-label="Stores"><div class="mi allrow"><input type="checkbox" data-storeall="1" aria-label="Select or clear all stores" ${sel.size === accounts.length ? 'checked' : ''}><button type="button" class="lonly" data-store-pick="" title="Show all stores"><span class="scrow"><b>All stores</b><small>${accounts.length} stores</small></span></button><b class="muted">${sel.size}/${accounts.length}</b></div><div class="msep"></div>${rows}${hiddenStores().length ? `<div class="msep"></div>${hiddenStores().map((a) => `<div class="mi locked" data-lock="stores" title="We found this store in your account. It is included in Pro and Lifetime."><span class="scrow"><b class="withflag">${accountFlag(a)}${esc(a.id)}</b><small>${esc(accountLabel(a))} · ${(a.locales || []).map((l) => LOCALES[l].short).join(' ')}</small></span>${PRO_PILL}</div>`).join('')}` : ''}<p class="muted small" style="margin:8px 8px 4px">Click a name to see only that store · tick boxes to combine.</p></div>`
     : '';
   return `<div class="dd"><button type="button" class="ddsum storebtn" data-dd="store" aria-haspopup="listbox" aria-expanded="${view.storeOpen}" title="The store you are looking at (click to change)"><span class="sline"><span class="sl">STORE</span><b>${esc(main.id)}</b>${others > 0 ? `<span class="more" title="${others} other store${others > 1 ? 's' : ''}">+${others}</span>` : ''}</span>${CHEVRON}</button>${menu}</div>`;
 }
@@ -705,7 +707,7 @@ function currencyDropdownHTML(dayRows) {
   const sel = chartCurSet(dayRows);
   const items = all.map((c) => `<div class="mi"><input type="checkbox" data-cur="${c}" aria-label="Add or remove ${esc(curName(c))}" ${sel.includes(c) ? 'checked' : ''}><button type="button" class="lonly" data-curonly="${c}" title="Show only ${esc(curName(c))}"><span class="cursym">${esc(curSymbol(c))}</span><span>${esc(curName(c))}</span></button><b class="muted">${c}</b></div>`).join('');
   const menu = view.curOpen
-    ? `<div class="menu menuright" role="group" aria-label="Currencies"><div class="mi allrow"><input type="checkbox" data-curallbox="1" aria-label="Select or clear all currencies" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-curall="1" title="Show all currencies"><span><b>All currencies</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}<p class="muted small cxnote">Several currencies are drawn together in ~USD at rough rates (an estimate). The tooltip always shows each currency's exact amount.</p></div>`
+    ? `<div class="menu menuright" role="group" aria-label="Currencies"><div class="mi allrow"><input type="checkbox" data-curallbox="1" aria-label="Select or clear all currencies" ${sel.length === all.length ? 'checked' : ''}><button type="button" class="lonly" data-curall="1" title="Show all currencies"><span><b>All currencies</b></span></button><b class="muted">${sel.length}/${all.length}</b></div><div class="msep"></div>${items}<p class="muted small cxnote">Several currencies are drawn together in ~USD, converted at today's exchange rate. The tooltip always shows each currency's exact amount.</p></div>`
     : '';
   const label = sel.length === all.length ? 'All currencies' : sel.length === 1 ? curName(sel[0]) : `${sel.length} currencies`;
   const chips = sel.length <= 4 ? `<span class="dots curdots">${sel.map((c) => `<span class="cursym">${esc(curSymbol(c))}</span>`).join('')}</span>` : '';
@@ -819,41 +821,29 @@ function countryTotals() {
 }
 function countriesSettingsHTML() {
   const on = (c) => settings.countries.includes(c);
-  const tot = countryTotals();
   const sold = new Set(accounts.flatMap((a) => a.locales || []));
   const mine = Object.keys(LOCALES).filter((c) => sold.has(c)), other = Object.keys(LOCALES).filter((c) => !sold.has(c));
-  const card = (c) => {
-    const m = LOCALES[c], stores = accounts.filter((a) => (a.locales || []).includes(c)).length, t = tot[c];
-    const stat = t ? `<b>${esc(amountText(t))}</b><small>${fmtNum(t.clicks)} clicks</small>` : '<small>no data yet</small>';
-    if (!isProNow() && SEPARATE_SITES[c]) return `<label class="ccard locked" data-lock="sites" title="Countries on a separate Associates site are included in Pro"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}</b><small>${m.cur} · separate Associates site</small></span><span class="cstat">${PRO_PILL}</span></label>`;
-    return `<label class="ccard ${on(c) ? 'on' : ''}"><input type="checkbox" data-country="${c}" ${on(c) ? 'checked' : ''} aria-label="Show ${esc(m.label)}"><span class="cflag">${flagSVG(c)}</span><span class="cbody"><b>${esc(m.label)}${SEPARATE_SITES[c] ? proMark() : ''}</b><small>${m.cur}${stores ? ` · ${stores} store${stores > 1 ? 's' : ''}` : ''}</small></span><span class="cstat">${stat}</span><span class="switch" aria-hidden="true"></span></label>`;
+  const chip = (c) => {
+    const m = LOCALES[c];
+    if (!isProNow() && SEPARATE_SITES[c]) return `<label class="cbx locked" data-lock="sites" title="${esc(m.label)}: countries on a separate Associates site are included in Pro">${flagSVG(c)}<b>${esc(m.short)}</b>${PRO_PILL}</label>`;
+    return `<label class="cbx ${on(c) ? 'on' : ''}" title="${esc(m.label)} (${m.cur})"><input type="checkbox" data-country="${c}" ${on(c) ? 'checked' : ''} aria-label="Show ${esc(m.label)}">${flagSVG(c)}<b>${esc(m.short)}</b>${SEPARATE_SITES[c] ? proMark() : ''}</label>`;
   };
-  return `<p class="muted small" style="margin:0 0 10px">Choose the countries the dashboard shows. Figures are for <b>${esc(periodLabel())}</b>.</p>
-    <div class="cquick"><button type="button" class="linkbtn" data-cq="mine">Where my stores sell</button><button type="button" class="linkbtn" data-cq="active">Only with activity</button><button type="button" class="linkbtn" data-cq="all">All</button></div>
-    ${mine.length ? `<div class="cgroup">WHERE YOUR STORES SELL</div><div class="cgrid">${mine.map(card).join('')}</div>` : ''}
-    <div class="cgroup">OTHER AMAZON COUNTRIES <span class="muted small">(none of your stores sells here yet)</span></div><div class="cgrid">${other.map(card).join('')}</div>`;
+  return `<div class="cquick"><span class="muted small">Tick the countries to show.</span><button type="button" class="linkbtn" data-cq="mine">Where my stores sell</button><button type="button" class="linkbtn" data-cq="all">All</button></div>
+    ${mine.length ? `<div class="cbxs">${mine.map(chip).join('')}</div>` : ''}
+    ${other.length ? `<details class="cmore"${mine.length ? '' : ' open'}><summary>${mine.length ? 'Other Amazon countries' : 'Countries'} (${other.length})</summary><div class="cbxs">${other.map(chip).join('')}</div></details>` : ''}`;
 }
 function storesSettingsHTML() {
   if (!accounts.length) return '<p class="muted">Stores appear here after the first successful load (you must be signed in).</p>';
   const accOn = (id) => !settings.accounts || settings.accounts.includes(id);
-  const tot = storeTotals(), per = periodLabel();
-  const cards = accounts.map((a, i) => {
+  const rows = accounts.map((a, i) => {
     const on = accOn(a.id);
-    let host = ''; try { host = new URL(a.base).host; } catch (_) {}
     const err = Object.values(status.siteErrors || {}).find((e) => a.base && e.url === a.base);
-    let lu = ''; for (const l of a.locales || []) { const e = entry(a.id, l, 'day'); if (e && e.lu) { lu = `${LOCALES[l].short} ${e.lu}`; break; } }
-    const t = tot[a.id];
-    return `<label class="scard ${on ? 'on' : 'off'}"><input type="checkbox" data-account="${esc(a.id)}" ${on ? 'checked' : ''} aria-label="Include ${esc(a.id)}">
-      <span class="sbody"><span class="srow1"><b>${esc(a.id)}</b>${i === 0 ? '<span class="badge amz">main</span>' : proMark()}${err ? '<span class="badge warn">not signed in</span>' : ''}${on ? '' : '<span class="badge">left out</span>'}</span>
-        <span class="small muted">${esc(accountLabel(a))}${host ? ` · ${esc(host)}` : ''}</span>
-        <span class="sflags">${(a.locales || []).map((l) => `<span class="cchip">${flagSVG(l)}${esc(LOCALES[l].short)}</span>`).join('')}</span>
-        <span class="sstats">${t ? `<b>${esc(amountText(t))}</b> earned · ${fmtNum(t.clicks)} clicks <em>${esc(per)}</em>` : '<span class="muted">no figures loaded yet</span>'}</span>
-        ${lu ? `<span class="small muted">Amazon data updated ${esc(lu)}</span>` : ''}</span></label>`;
+    return `<label class="srow ${on ? 'on' : 'off'}"><input type="checkbox" data-account="${esc(a.id)}" ${on ? 'checked' : ''} aria-label="Include ${esc(a.id)}">${accountFlag(a)}<b>${esc(a.id)}</b><span class="muted small">${esc(accountLabel(a))}</span>${i === 0 ? '<span class="badge amz">main</span>' : proMark()}${err ? '<span class="badge warn">not signed in</span>' : ''}</label>`;
   }).join('');
+  const locked = hiddenStores().map((a) => `<label class="srow off locked" data-lock="stores" title="More stores are included in Pro">${accountFlag(a)}<b>${esc(a.id)}</b><span class="muted small">${esc(accountLabel(a))}</span>${PRO_PILL}</label>`).join('');
   const hid = hiddenStores();
-  const locked = hid.map((a) => { let host = ''; try { host = new URL(a.base).host; } catch (_) {} return `<label class="scard off locked" data-lock="stores" title="More stores are included in Pro"><span class="sbody"><span class="srow1"><b>${esc(a.id)}</b>${PRO_PILL}</span><span class="small muted">${esc(accountLabel(a))}${host ? ` · ${esc(host)}` : ''}</span><span class="sflags">${(a.locales || []).map((l) => `<span class="cchip">${flagSVG(l)}${esc(LOCALES[l].short)}</span>`).join('')}</span></span></label>`; }).join('');
-  const note = isProNow() ? 'Untick a store to leave it out of every number, chart and alert. The <b>main</b> store is the first one Amazon lists.' : `The Free plan includes <b>1 store</b>: your main store, the first one Amazon lists.${hid.length ? ` Your other ${hid.length} store${hid.length > 1 ? 's are' : ' is'} included in Pro and Lifetime.` : ''}`;
-  return `<p class="muted small" style="margin:0 0 10px">${note}</p><div class="sgrid">${cards}${locked}</div>`;
+  const note = isProNow() ? 'Untick a store to leave it out of every number, chart and alert.' : `The Free plan includes <b>1 store</b>.${hid.length ? ` Your other ${hid.length} store${hid.length > 1 ? 's are' : ' is'} included in Pro.` : ''}`;
+  return `<p class="muted small" style="margin:0 0 6px">${note}</p><div class="srows">${rows}${locked}</div>`;
 }
 // ---- sign-in gate: an account (email or Google) is required, Free included ---------------------------------------------
 // The "Sign in" button makes the worker open our sign-in web page; this screen then polls (every 2 s) until the page confirms.
@@ -897,6 +887,9 @@ function footerHTML() {
 document.addEventListener('input', (e) => { const t = e.target; if (t && t.id === 'gmail') view.draft.email = t.value; else if (t && t.id === 'gpass') view.draft.password = t.value; });
 // While the window is open the plan is re-checked every 20 s (every 5 s for 10 minutes after "See plans" was clicked), so a purchase or a
 // plan given in the backoffice shows up by itself. (A push from the server is not possible for an extension without a push service.)
+// Opt-in usage events (button names only; the worker sends them only when "share anonymous usage" is on).
+const TRACKED_IDS = new Set(['upgradebtn', 'plantrial', 'planrefresh', 'signout', 'tourstart', 'refresh', 'gear', 'acct', 'bell']);
+const track = (name) => { try { chrome.runtime.sendMessage({ type: 'track', name }).catch(() => {}); } catch (_) {} };
 let planTimer = null, planTimerFast = false;
 function ensurePlanPolling() {
   if (typeof setInterval === 'undefined') return;
@@ -904,7 +897,7 @@ function ensurePlanPolling() {
   if ((!want && planTimer) || (planTimer && planTimerFast !== fast)) { clearInterval(planTimer); planTimer = null; }
   if (want && !planTimer) {
     planTimerFast = fast;
-    planTimer = setInterval(() => { if (typeof document !== 'undefined' && document.hidden) return; chrome.runtime.sendMessage({ type: 'license', action: 'refresh' }).catch(() => {}); }, fast ? 5000 : 20000);
+    planTimer = setInterval(() => { if (typeof document !== 'undefined' && document.hidden) return; chrome.runtime.sendMessage({ type: 'license', action: 'refresh' }).catch(() => {}); }, fast ? 5000 : 15000);
   }
 }
 let pollTimer = null;
@@ -918,7 +911,7 @@ function ensureAuthPolling() {
 // view.tour = index of the step on screen, or null. Steps whose target is not on screen are skipped.
 const TOUR = [
   { sel: '#storefilter', title: 'Your stores', text: () => (isProNow() ? 'Every store of your Associates account. Click the menu to see one store, or tick several to combine them. The countries follow your choice.' : 'Your store, with all its countries. Free includes one store; Pro and Lifetime add all your other stores, with a menu to switch or combine them.') },
-  { sel: '.toolbar .when', title: 'Dates, metrics and currencies', text: () => 'Pick the period (today, 7 or 30 days, quarters, years, or your own dates), choose what the chart draws with Metrics, and, when you earn in several currencies, choose which ones to include. Several currencies are drawn together in ~USD at rough rates; hover the chart for each currency\'s exact amount.' },
+  { sel: '.toolbar .when', title: 'Dates, metrics and currencies', text: () => 'Pick the period (today, 7 or 30 days, quarters, years, or your own dates), choose what the chart draws with Metrics, and, when you earn in several currencies, choose which ones to include. Several currencies are drawn together in ~USD at today\'s exchange rate; hover the chart for each currency\'s exact amount.' },
   { sel: '.locwrap', title: 'Countries and tags', text: () => (isProNow() ? 'Choose the countries to show. The Tags filter narrows everything to the tracking IDs you pick. Each filter only offers what the one before it leaves.' : 'Choose the countries to show. The Tags filter (Pro) narrows everything to one tracking ID, with the real daily clicks per tag.') },
   { sel: '.brow.r2', title: 'Mode, settings and alerts', text: () => (isProNow()
       ? 'Light or dark mode. Settings: your plan and account, countries, stores, alert types, and this tour again. The bell lists new orders, commissions, bonuses and Creator Rewards tiers.'
@@ -996,22 +989,33 @@ function planHeadHTML() {
     <div class="phbody">
       <p class="phline">${esc(w.line)}</p>
       <div class="phrow">
-        <div class="phacct" title="The account this browser is connected to">${avatarHTML('md')}<span class="phwho">${who}<span>Signed in as <b>${mail}</b> <button type="button" class="linkbtn" id="signout">Sign out</button></span></span></div>
         <div class="planbtns">${trialBtn}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${pro && paid ? '' : trialBtn ? '' : 'class="primary"'}>${pro ? 'Manage plan' : 'See plans'}</button><button type="button" id="planrefresh" ${busy ? 'disabled' : ''} title="Ask the license server again">Check again</button></div>
       </div>
       ${view.planMsg ? `<p class="small phmsg" style="color:${view.planMsg.err ? 'var(--bad)' : 'var(--text)'}">${esc(view.planMsg.text)}</p>` : ''}
     </div>
     ${pro ? '' : `<div class="phadds"><div class="muted small">Pro and Lifetime add:</div><ul class="planlist">${adds.map((a) => `<li>${esc(a)}</li>`).join('')}</ul></div>`}
     <div class="phfoot">${keyRow}
-      <div class="phline2"><label class="nt plantele" title="Off by default. Sends only the app version, your plan and a few counters such as how many stores you have. Never earnings, store names or tags."><input type="checkbox" id="shareusage" ${settings.shareUsage ? 'checked' : ''}><span>Share anonymous usage <span class="muted small">(off by default · <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>)</span></span></label>
+      <div class="phline2"><label class="nt plantele" title="Off by default. Sends only the app version, your plan, a few counters such as how many stores you have, and the names of the main buttons you press (for example Refresh). Never earnings, store names or tags."><input type="checkbox" id="shareusage" ${settings.shareUsage ? 'checked' : ''}><span>Share anonymous usage <span class="muted small">(off by default · <a href="${esc(PLAN_CFG.privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>)</span></span></label>
       <span class="muted small phchk">${license.checkedAt ? `Plan checked ${esc(timeAgo(license.checkedAt))}.` : 'Plan not checked yet.'} ${license.lastError ? `Last attempt failed (${esc(planMessage(license.lastError))})` : ''}</span></div>
     </div>
   </div>`;
 }
-// The connected account, always visible under the logo.
-function acctChipHTML() {
-  const mail = license && license.account && license.account.email;
-  return mail ? `<div class="acctchip" title="Connected account: ${esc(mail)}">${avatarHTML('sm')}<span>${esc(mail)}</span></div>` : '';
+// The account menu (avatar in the header, right side): who is signed in, the plan, and the account actions.
+function acctPanelHTML() {
+  const w = planWords(), i = planInfo(license), pro = i.plan === 'pro', paid = pro && (i.source === 'license' || i.source === 'comp');
+  const mail = esc((license.account && license.account.email) || 'your account');
+  const name = license.account && license.account.name ? esc(license.account.name) : '';
+  const sub = i.source === 'trial' ? `${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'} left` : pro ? (i.cycle === 'lifetime' ? 'Lifetime' : i.source === 'gift' ? 'Gift' : 'Active') : 'Upgrade for more';
+  return `<div class="apanel" role="menu" aria-label="Account">
+    <div class="ahead">${avatarHTML('md')}<div class="awho">${name ? `<b>${name}</b>` : ''}<span title="${mail}">${mail}</span></div></div>
+    <div class="aplan ${pro ? 'pro' : 'free'}"><b>${esc(w.title)}</b><span>${esc(sub)}</span></div>
+    <button type="button" class="aitem" role="menuitem" id="a-settings">Settings</button>
+    <button type="button" class="aitem" role="menuitem" data-open="${esc(PLAN_CFG.pricingUrl)}">${pro ? (paid ? 'Manage plan' : 'See plans') : 'See plans'}</button>
+    <button type="button" class="aitem" role="menuitem" id="a-check" title="Ask the license server again">Check my plan again</button>
+    <button type="button" class="aitem" role="menuitem" data-open="${esc(PLAN_CFG.privacyUrl)}">Privacy policy</button>
+    <div class="asep"></div>
+    <button type="button" class="aitem danger" role="menuitem" id="signout">Sign out</button>
+  </div>`;
 }
 function upsellHTML() {
   const [title, text] = UPSELL[view.upsell] || UPSELL.plan;
@@ -1040,10 +1044,10 @@ function settingsHTML() {
     ? `<label class="nt"><input type="checkbox" data-notify="${id}" ${conf[id] ? 'checked' : ''}><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span>${FREE_NOTIFY.includes(id) ? '' : proMark()}</label>`
     : `<label class="nt locked" data-lock="notify"><input type="checkbox" disabled><i class="sw" style="background:var(--s-${col})"></i><span>${label}</span>${PRO_PILL}</label>`)).join('');
   return `<section class="set">
-    <h2>Countries to show</h2>
-    ${countriesSettingsHTML()}
-    <h2>Associate stores</h2>
-    ${storesSettingsHTML()}
+    <div class="setgrid">
+      <div><h2>Countries</h2>${countriesSettingsHTML()}</div>
+      <div><h2>Stores</h2>${storesSettingsHTML()}</div>
+    </div>
     <h2>Notifications</h2>
     <div class="nset"><div class="muted small">Notify me about</div><div class="ntoggles">${toggles}</div>
       ${isProNow() ? `<label class="nt desk"><input type="checkbox" data-notify="desktop" ${conf.desktop ? 'checked' : ''}><span>Also show desktop alerts <span class="muted small">(Chrome will ask for permission)</span></span>${proMark()}</label>` : `<label class="nt desk locked" data-lock="desktop"><input type="checkbox" disabled><span>Also show desktop alerts ${PRO_PILL}</span></label>`}
@@ -1057,8 +1061,8 @@ function settingsHTML() {
 document.addEventListener('error', (e) => { const el = e.target; if (el && el.classList && el.classList.contains('avimg')) el.remove(); }, true);
 const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 const ICON_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
-const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = view.storeOpen = view.tagOpen = view.curOpen = false; };
-const anyPopOpen = () => view.ddOpen || view.perOpen || view.calOpen || view.notifOpen || view.locOpen || view.storeOpen || view.tagOpen || view.curOpen;
+const closePops = () => { view.ddOpen = view.perOpen = view.calOpen = view.notifOpen = view.locOpen = view.storeOpen = view.tagOpen = view.curOpen = view.acctOpen = false; };
+const anyPopOpen = () => view.ddOpen || view.perOpen || view.calOpen || view.notifOpen || view.locOpen || view.storeOpen || view.tagOpen || view.curOpen || view.acctOpen;
 const fmtDay = (s, withYear) => parseYmd(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}) });
 const rangeText = (a, b, withYear = true) => (a === b ? fmtDay(a, withYear) : `${fmtDay(a, withYear)} – ${fmtDay(b, withYear)}`);
 
@@ -1234,10 +1238,14 @@ function render() {
   badge.textContent = unread > 9 ? '9+' : String(unread);
   $('#bell').title = unread ? `${unread} new notification${unread > 1 ? 's' : ''}` : 'Notifications';
   $('#bell').setAttribute('aria-expanded', String(view.notifOpen));
+  { const ab = $('#acct'), on = signedIn() && !status.signedOut;
+    if (ab) { ab.hidden = !on; ab.innerHTML = on ? avatarHTML('sm') : ''; ab.title = on && license.account && license.account.email ? `Account: ${license.account.email}` : 'Account'; ab.setAttribute('aria-expanded', String(!!view.acctOpen && on)); }
+    const ap = $('#acctpanel'); if (ap) { ap.innerHTML = view.acctOpen && on ? acctPanelHTML() : ''; ap.style.top = '';
+      if (view.acctOpen && on && ab && ab.getBoundingClientRect && ap.parentNode && ap.parentNode.getBoundingClientRect) { const b = ab.getBoundingClientRect(), h = ap.parentNode.getBoundingClientRect(); if (b.bottom) ap.style.top = Math.round(b.bottom - h.top + 4) + 'px'; } } }
   const np = $('#notifpanel'); np.innerHTML = view.notifOpen ? notifPanelHTML() : '';
   // the panel opens right under the bell (not under the whole header, which can be much taller)
   if (np.style) { np.style.top = ''; const bell = $('#bell'), hdr = np.parentNode; if (view.notifOpen && bell && hdr && bell.getBoundingClientRect && hdr.getBoundingClientRect) { const b = bell.getBoundingClientRect(), h = hdr.getBoundingClientRect(); if (b.bottom) np.style.top = Math.round(b.bottom - h.top + 8) + 'px'; } }
-  const sf = $('#storefilter'); if (sf) sf.innerHTML = status.signedOut || !signedIn() ? '' : view.showSettings ? '' : storeFilterHTML() + acctChipHTML();
+  const sf = $('#storefilter'); if (sf) sf.innerHTML = status.signedOut || !signedIn() ? '' : view.showSettings ? '' : storeFilterHTML();
   $('#headtotal').innerHTML = status.signedOut || !signedIn() ? '' : view.showSettings ? planHeadHTML() : totalCardHTML(tagAgg() || collect('day'));
   maybeStartTour();
   const main = $('#main');
@@ -1280,6 +1288,7 @@ function requestLoad(force = false) {
   chrome.runtime.sendMessage({ type: 'load', period: view.period, range: curRange(), locales: selLocales(), dims: wantedDims(), force, ...(view.stores ? { accounts: [...view.stores] } : {}) }).catch(() => {});
 }
 async function saveSettings(patch, reload = true) {
+  if (patch.countries) patch = { ...patch, countriesCustom: true };    // from now on the worker no longer switches countries on by itself
   settings = { ...settings, ...patch };
   await chrome.storage.local.set({ settings });
   if (view.sel && !enabledCountries().some((c) => view.sel.has(c))) view.sel = null;
@@ -1323,7 +1332,8 @@ async function planAction(kind) {
 document.addEventListener('click', async (e) => {
   const t = e.target;
   const q = (s) => t.closest(s);
-  if (anyPopOpen() && !q('.dd, .npanel, #bell')) { closePops(); render(); }
+  { const id = t.closest && t.closest('button[id]'); if (id && TRACKED_IDS.has(id.id)) track('ui_' + id.id); else if (q('[data-open]') && q('[data-open]').dataset.open === PLAN_CFG.pricingUrl) track('see_plans_click'); }
+  if (anyPopOpen() && !q('.dd, .npanel, #bell, .apanel, #acct')) { closePops(); render(); }
   if (q('[data-tour]')) {
     const k = q('[data-tour]').dataset.tour;
     if (k === 'next') { view.tour += 1; render(); } else if (k === 'back') { view.tour = Math.max(0, view.tour - 1); render(); }
@@ -1345,9 +1355,12 @@ document.addEventListener('click', async (e) => {
   if (q('#gother')) { view.verify = null; view.gateMsg = ''; render(); return; }
   if (q('#signin') || q('#signinagain')) { gateAction('authstart'); return; }
   if (q('#signincancel')) { gateAction('authcancel'); return; }
-  if (q('#signout')) { await chrome.runtime.sendMessage({ type: 'license', action: 'signout' }).catch(() => {}); view.planMsg = null; view.upsell = null; return; }
+  if (q('#signout')) { await chrome.runtime.sendMessage({ type: 'license', action: 'signout' }).catch(() => {}); closePops(); view.planMsg = null; view.upsell = null; view.showSettings = false; render(); return; }
   if (q('#dismissunlock')) { view.justUnlocked = 0; render(); return; }
   if (q('#dismisstrial')) { saveSettings({ dismissTrialEnded: true }, false); render(); return; }
+  if (q('#acct')) { const open = !view.acctOpen; closePops(); view.acctOpen = open; render(); return; }
+  if (q('#a-settings')) { closePops(); view.upsell = null; view.showSettings = true; render(); return; }
+  if (q('#a-check')) { closePops(); view.showSettings = true; render(); planAction('refresh'); return; }       // the answer shows in the plan card of Settings
   if (q('#bell')) {
     const open = !view.notifOpen;
     closePops(); view.notifOpen = open;
@@ -1512,8 +1525,15 @@ chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
   if (ch.cache) { cache = ch.cache.newValue || {}; dirty = true; }
   if (ch.status) { status = ch.status.newValue || {}; dirty = true; }
-  if (ch.license) { const was = signedIn(), wasPro = isProNow(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } if (!wasPro && isProNow()) { view.unlockGift = license.ent && license.ent.source === 'gift' ? (license.ent.cycle === 'lifetime' ? 'lifetime' : 'month') : null; view.justUnlocked = Date.now(); view.fastUntil = 0; requestLoad(true); if (typeof setTimeout !== 'undefined') setTimeout(() => { if (view.justUnlocked && Date.now() - view.justUnlocked >= 14900) { view.justUnlocked = 0; render(); } }, 15000); } dirty = true; }
+  if (ch.license) { const was = signedIn(), wasPro = isProNow(); license = ch.license.newValue || {}; setAccounts(rawAccounts); clampView(); if (!was && signedIn()) { view.gateMsg = ''; requestLoad(true); } if (was && !signedIn()) { closePops(); view.showSettings = false; } if (!wasPro && isProNow()) { view.unlockGift = license.ent && license.ent.source === 'gift' ? (license.ent.cycle === 'lifetime' ? 'lifetime' : 'month') : null; view.justUnlocked = Date.now(); view.fastUntil = 0; requestLoad(true); if (typeof setTimeout !== 'undefined') setTimeout(() => { if (view.justUnlocked && Date.now() - view.justUnlocked >= 14900) { view.justUnlocked = 0; render(); } }, 15000); } dirty = true; }
   if (ch.accounts) { setAccounts(ch.accounts.newValue); dirty = true; }
+  if (ch.countrySites) { applyDiscovered(ch.countrySites.newValue); dirty = true; }
+  if (ch.rates) { applyRates(ch.rates.newValue); dirty = true; }
+  if (ch.settings) {          // the worker switches on the countries where it found an account of your own
+    const was = JSON.stringify(settings.countries);
+    settings = { ...DEFAULTS, ...(ch.settings.newValue || {}) };
+    if (JSON.stringify(settings.countries) !== was) { dirty = true; requestLoad(); }
+  }
   if (ch.notif) {
     notif = ch.notif.newValue || { items: [], readAt: 0 };
     if (view.notifOpen && unreadCount()) { notif.readAt = Date.now(); chrome.storage.local.set({ notif }); } // already looking at the list
@@ -1525,7 +1545,8 @@ chrome.storage.onChanged.addListener((ch) => {
 (async () => {
   try {
     if (new URLSearchParams(location.search).has('full')) document.body.classList.add('full');
-    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState', 'license']);
+    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState', 'license', 'countrySites', 'rates']);
+    applyDiscovered(st.countrySites); applyRates(st.rates); track('popup_open');
     license = st.license || {};
     settings = { ...DEFAULTS, ...(st.settings || {}) };
     cache = st.cache || {}; status = st.status || {}; setAccounts(st.accounts); notif = st.notif || { items: [], readAt: 0 };

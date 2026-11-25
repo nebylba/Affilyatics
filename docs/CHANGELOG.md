@@ -2,6 +2,42 @@
 
 Newest first. Dates are when the change was made.
 
+## 2026-11-25
+
+- **Release 5.1.0** (new Web Store submission): everything listed below for 2026-11-25. New permissions to explain to the store: `gcm` and the 21 other Amazon Associates sites (see `store/LISTING.md`).
+- **Header**: the "N days left in Pro" / Upgrade button now spans the full width of the Refresh button (the Close X moved to the icon row, after the avatar).
+- **Simpler Settings, one screen**: no more statistics or big cards. Countries are compact flag chips (the countries where your stores sell first, the rest under "Other Amazon countries"), stores are one line each (flag, store id, account, badges), and the two blocks sit side by side when the window is wide.
+- **Real currency converter**: the "~USD" chart no longer uses fixed rough rates. The worker asks OUR server for today's exchange rates (at most every 12 h; the server gets them daily from ExchangeRate-API) and converts at that rate; until the first answer, or when offline, it falls back to the old table. All explanations (chart caption tooltip, currency menu, tour) now say "converted at today's exchange rate".
+- **Gifts and plan changes show up at once**: (1) the server now PUSHES "your plan changed" to the browser (Firebase Cloud Messaging through Chrome's `gcm` API: new `gcm` permission, `PLAN_CFG.gcmSenderId`, the push token is sent with each plan check, a push wakes the worker which asks for the plan); (2) while the window is open the plan is asked every 15 s (was 20 s) and the server's limit of 120 checks/hour, which 20 s polling exceeded after 40 minutes (causing "rate_limited" and a stuck plan), is now 600. The push needs the server key `_lib/keys/fcm.json` (see the website docs); without it the 15 s / 15 min checks still work.
+- **Opt-in usage events**: with "Share anonymous usage" on, the names of the main buttons pressed (Upgrade, Refresh, Settings, account menu, sign out, ...) are sent to our server, which relays them to Google Analytics 4 (property Affilyatics, `ext_` events, anonymous id). Never earnings, store names or tags. The setting's tooltip says so.
+- **Account menu**: the avatar and email moved from under the logo and from the plan card in Settings to a new avatar button on the right of the header. Its menu shows the avatar, name, email and plan, with Settings, Manage plan / See plans, Check my plan again, Privacy policy and Sign out.
+- **Sign out returns to the start by itself**: Settings used to stay open after signing out (the popup does not redraw on storage changes while Settings is open), so you had to click the back arrow. Signing out now closes Settings and shows the sign-in screen at once, also when the sign-out comes from another window.
+- **Flag next to each account in the store menu**: every store row (and the locked Pro rows) shows the flag of its account's country (the country of its own Associates site, the US flag for the main account).
+- **Shorter chart caption**: the long line under the chart ("Earnings (the chosen currencies drawn together in ~USD ...") is now just "Earnings in ~USD" (or the currency) with a "?" whose tooltip holds the explanation (it opens upwards).
+- **Fix: CORS errors in the extension's error list**: checking a country site where the user has no account made Amazon redirect to its sign-in page on another domain, which Chrome blocks and logs (one error per country per check). Requests to the other country sites no longer follow redirects (`redirect: 'manual'` in `fetchContext`); a redirect now simply means "no account / not signed in". No functional change.
+- **All Amazon countries, found automatically**: the extension now knows all 22 Associates countries (added JP, IN, BR, MX, AU, AE,
+  SG, SA, BE, IE, TR, EG, with flags) and finds the user's accounts by itself on the first load. It reads Amazon's own country
+  switcher (the `ac-country` radios with each country's site address), then checks every country site in the background (4 at a
+  time, Pro only) for an account: the stores and countries found there are added, and the countries with an account of their own
+  are switched on automatically (until the user picks countries by hand: `settings.countriesCustom`). Countries with no account
+  are skipped silently (never shown as "signed out"). The list and the countries without an account are re-checked every 24 h
+  (`SITES_MIN`) and when you press Refresh (at most every 10 minutes); a country Amazon adds later is registered by itself from
+  the site's own page (currency, marketplace id). Sites that only exist on their own site stay in `SEPARATE_SITES`; GB, DE, FR, IT,
+  ES, NL, SE and PL (also reachable through the US account) are in `OWN_SITES`, and their own-site stores come in as extra accounts.
+  A separate site now uses the marketplace id its own page reports. `manifest.json` lists all 21 other Associates sites in
+  `host_permissions` (needed for this; the Web Store will review it and users get a permission prompt on update).
+  Details of the research behind it: `docs/ASSOCIATES_SITES.md`.
+- **Fixed extension id for GitHub and local installs (Google sign-in)**: `manifest.json` now always carries the public `key` from
+  `tools/dev-extension-key.json` (id `fhccbomkecngijcmapafebjbbbmenahl`), so an unpacked install from GitHub gets the same id as
+  local testing and Google's `redirect_uri_mismatch` goes away once `https://<id>.chromiumapp.org/` is registered in Google Cloud.
+  `tools/set-env.py` no longer adds/removes the key (it only switches the server addresses); `tools/package.py` removes the key
+  from the manifest inside the Web Store zip (the store keeps its own id `pikaeildnladnpjcakoglpheegipkokg`). Only the public
+  key is committed; there is no private key in the repo.
+- **New logo and icons**: replaced `icons/logo-{light,dark}.svg`, `icons/favicon-{light,dark}.svg` and the toolbar/store
+  PNGs `icons/icon{16,32,48,128}.png` with the final artwork from `_old_Affilyatics.com/designs/Logo/Final`
+  (new wordmark tagline "A Better Amazon Dashboard"). The PNGs are rendered from `favicon Affilyatics light.svg`
+  (navy tile, white bars, transparent corners), same style as before. Not pushed yet: to be tested locally first.
+
 ## 2026-11-15
 
 - **Pending shipments / Returned items with several currencies**: the cards showed every currency on one line and overflowed.

@@ -23,6 +23,8 @@ const REFRESH_MINUTES = 5;     // how often the alarm wakes the worker (cheap: o
 const BASE = 'https://affiliate-program.amazon.com';
 const CTX_MAX_AGE_MIN = 20;    // reuse login tokens this long (also refreshed when Amazon answers 401/403)
 const DISCOVERY_MIN = 360;     // store/country discovery cache
+const RATES_MIN = 720;         // exchange rates: asked from our server at most every 12 h (it updates them once a day)
+const SITES_MIN = 1440;        // re-read the country list and re-check countries without an account (24 h)
 const CACHE_VERSION = 2;       // entries written by an older layout are treated as stale
 let DUE_MIN = FEATURES.pro.autoRefreshMin - 0.5;   // minutes before day/rewards data is due again; set from the plan in load()
 
@@ -42,22 +44,46 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 class AuthError extends Error {}
 class StaleCtx extends Error {}   // 401/403: the cached login tokens are no longer accepted
 
-// Make the worker's own requests look like the Associates site made them.
-const SITE_BASES = [BASE, ...Object.values(SEPARATE_SITES)];
-chrome.declarativeNetRequest.updateSessionRules({
-  removeRuleIds: SITE_BASES.map((_, i) => i + 1),
-  addRules: SITE_BASES.map((base, i) => ({
-    id: i + 1, priority: 1,
-    action: {
-      type: 'modifyHeaders',
-      requestHeaders: [
-        { header: 'Origin', operation: 'set', value: base },
-        { header: 'Referer', operation: 'set', value: base + '/p/reporting/earnings' }
-      ]
-    },
-    condition: { urlFilter: `||${new URL(base).host}/`, resourceTypes: ['xmlhttprequest'], tabIds: [-1] }
-  }))
-}).catch((e) => console.warn('[affilyatics] header rule not applied:', e.message));
+// Make the worker's own requests look like the Associates site made them (one rule per site we talk to).
+// The list of sites grows when discovery runs (new country, or an account on a site), so the rules are re-applied then.
+let ruleCount = 0;
+function applyHeaderRules() {
+  const bases = [BASE, ...new Set(Object.values(allSites()))];
+  const old = Array.from({ length: Math.max(ruleCount, bases.length) }, (_, i) => i + 1);
+  ruleCount = bases.length;
+  return chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: old,
+    addRules: bases.map((base, i) => ({
+      id: i + 1, priority: 1,
+      action: {
+        type: 'modifyHeaders',
+        requestHeaders: [
+          { header: 'Origin', operation: 'set', value: base },
+          { header: 'Referer', operation: 'set', value: base + '/p/reporting/earnings' }
+        ]
+      },
+      condition: { urlFilter: `||${new URL(base).host}/`, resourceTypes: ['xmlhttprequest'], tabIds: [-1] }
+    }))
+  }).catch((e) => console.warn('[affilyatics] header rule not applied:', e.message));
+}
+applyHeaderRules();
+chrome.storage.local.get('countrySites').then((st) => { if (st.countrySites) { applyDiscovered(st.countrySites); applyHeaderRules(); } }).catch(() => {});
+
+// ---- exchange rates (today's real rates for the ~USD chart) ---------------------------------------------------------
+// Asked from OUR server (never a third party from the user's browser); no account data is sent. A failure keeps the last table.
+async function refreshRates(force = false) {
+  try {
+    const { rates } = await chrome.storage.local.get('rates');
+    if (!force && rates && rates.at && Date.now() - rates.at < RATES_MIN * 60000) { applyRates(rates); return; }
+    const res = await fetch(`${PLAN_CFG.api}/rates`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', credentials: 'omit', cache: 'no-store' });
+    const j = res.ok ? await res.json() : null;
+    if (!j || !j.ok || !j.perUsd || !(j.perUsd.EUR > 0)) { if (rates) applyRates(rates); return; }
+    const next = { at: Date.now(), date: j.date, perUsd: j.perUsd };
+    applyRates(next);
+    await chrome.storage.local.set({ rates: next });
+  } catch (_) { /* offline: keep using what we have */ }
+}
+chrome.storage.local.get('rates').then((st) => { if (st.rates) applyRates(st.rates); }).catch(() => {});
 
 // ---- one-at-a-time request queue; the pause between requests only grows after an HTTP 429 -----
 let chain = Promise.resolve();
@@ -101,7 +127,10 @@ const attr = (tag, name) => {
 
 async function fetchContext(storeId, base = BASE) {
   const url = `${base}/p/reporting/earnings` + (storeId ? `?store_id=${encodeURIComponent(storeId)}` : '');
-  const res = await pageRequest(url, { credentials: 'include', headers: { Accept: 'text/html' } });
+  // Other country sites: do NOT follow redirects. Without an account (or signed out) Amazon sends the request to its sign-in page
+  // on another domain, which Chrome blocks (CORS) and logs as an error in the extension. A redirect simply means "not signed in".
+  const res = await pageRequest(url, { credentials: 'include', headers: { Accept: 'text/html' }, ...(base !== BASE ? { redirect: 'manual' } : {}) });
+  if (res.type === 'opaqueredirect') throw new AuthError('Not signed in to Amazon Associates');
   if (/\/ap\/|signin/i.test(res.url) || res.status === 401) throw new AuthError('Not signed in to Amazon Associates');
   if (!res.ok) throw new Error(`Page HTTP ${res.status}`);
   const html = await res.text();
@@ -167,30 +196,79 @@ function discover(html, ps) {
   return [...stores].map((id) => ({ id, locales: [...(combos[id] || ['US'])] }));
 }
 
-// Stores/countries change rarely: discover once, reuse for hours (5 min after a partial failure).
-async function discoverAll(settings, req, pro = true) {
-  const st = await chrome.storage.local.get(['accounts', 'accountsAt', 'accountsSiteErrors']);
-  const sepLocs = pro ? [...new Set([...req.locales, ...settings.countries].filter((l) => SEPARATE_SITES[l]))] : [];
-  const cachedErr = st.accountsSiteErrors || {};
-  const age = Date.now() - (st.accountsAt || 0);
-  const maxAge = (Object.keys(cachedErr).length ? 5 : DISCOVERY_MIN) * 60000;
-  const coversSep = sepLocs.every((l) => cachedErr[l] || (st.accounts || []).some((a) => a.base === SEPARATE_SITES[l]));
-  // pressing Refresh re-checks a country site that failed before (e.g. after you signed in to it)
-  const retryFailed = req.force && Object.keys(cachedErr).length > 0;
-  if (st.accounts && st.accounts.length && age < maxAge && coversSep && !retryFailed) return { accounts: st.accounts, siteErrors: cachedErr };
+// The country switcher that Amazon puts on every Associates page: one radio per country with the address of that country's site.
+function parseSwitcher(html) {
+  const sites = {}, names = {};
+  for (const blk of html.match(/<div[^>]*data-a-input-name="ac-country"[\s\S]*?<\/label>/g) || []) {
+    const url = attr(blk.match(/<div[^>]*>/)[0], 'data-url');
+    const code = (blk.match(/<input[^>]*name="ac-country"[^>]*value="([A-Z]{2})"/) || [])[1];
+    const label = (blk.match(/data-csa-c-content-id="([^"]*)"/) || [])[1];
+    if (!code || !url) continue;
+    try { const u = new URL(url); sites[code] = u.origin; } catch (_) { continue; }
+    if (label) names[code] = decode(label);
+  }
+  return { sites, names };
+}
 
-  // the US page and every separate country site load at the same time
-  const sepResults = sepLocs.map((loc) => ctxFor(null, SEPARATE_SITES[loc], { fresh: true }).then((v) => ({ loc, v }), (e) => ({ loc, e })));
+// Stores and countries change rarely: discover once, reuse for hours (5 min after a partial failure).
+// Country sites: the list is re-read, and every country where the user had no account is checked again, at least every
+// SITES_MIN minutes (a new country, or a new account); Refresh checks again if the last check is older than 10 minutes.
+// A site is only ever reported as "signed out" if it worked before: for the others, silence (most users have no account there).
+async function discoverAll(settings, req, pro = true) {
+  const st = await chrome.storage.local.get(['accounts', 'accountsAt', 'accountsSiteErrors', 'countrySites', 'sitesProbed']);
+  const cachedErr = st.accountsSiteErrors || {};
+  const probed = { ...(st.sitesProbed || {}) };
+  const now = Date.now();
+  const age = now - (st.accountsAt || 0);
+  const maxAge = (Object.keys(cachedErr).length ? 5 : DISCOVERY_MIN) * 60000;
+  const retryFailed = req.force && Object.keys(cachedErr).length > 0;
+  const known = st.countrySites || null;
+  const stale = (c) => { const p = probed[c]; return !p || p.ok || now - p.at > SITES_MIN * 60000 || (req.force && now - p.at > 10 * 60000); };
+  const listOld = !known || now - (known.at || 0) > SITES_MIN * 60000;
+  const probeDue = pro && (listOld || Object.keys(known.sites || {}).some((c) => c !== 'US' && !probed[c]) || (req.force && Object.keys(probed).some(stale)));
+  if (st.accounts && st.accounts.length && age < maxAge && !retryFailed && !probeDue) return { accounts: st.accounts, siteErrors: cachedErr };
+
   const first = await ctxFor(null, BASE, { fresh: true });
-  // US site: every country EXCEPT those that have their own site (they would show a different, wrong view).
+  // US site: every country EXCEPT those that only exist on their own site (they would show a different, wrong view).
   const accounts = discover(first.html, first.ps).map((a) => ({ ...a, base: BASE, locales: a.locales.filter((l) => !SEPARATE_SITES[l]) }));
   const siteErrors = {};
-  for (const r of await Promise.all(sepResults)) {
-    const base = SEPARATE_SITES[r.loc];
-    if (r.e) siteErrors[r.loc] = { message: r.e instanceof AuthError ? `Not signed in to ${new URL(base).host}` : r.e.message, url: base };
-    else for (const a of discover(r.v.html, r.v.ps)) accounts.push({ id: a.id, base, locales: [r.loc] });
+  if (pro) {
+    const sw = parseSwitcher(first.html);
+    const countrySites = Object.keys(sw.sites).length
+      ? { at: now, sites: sw.sites, names: { ...((known || {}).names || {}), ...sw.names }, locales: (known || {}).locales || {} }
+      : (known || { at: now, sites: allSites(), names: {}, locales: {} });          // the page changed shape: keep what we knew
+    const codes = Object.keys(countrySites.sites).filter((c) => c !== 'US');
+    const todo = codes.filter(stale);
+    const results = {};
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(4, todo.length) }, async () => {
+      while (next < todo.length) {
+        const code = todo[next++];
+        try { results[code] = { v: await ctxFor(null, countrySites.sites[code], { fresh: true }) }; } catch (e) { results[code] = { e }; }
+      }
+    }));
+    const prevOn = (base) => (st.accounts || []).filter((a) => a.base === base);
+    for (const code of codes) {
+      const base = countrySites.sites[code], r = results[code], was = probed[code];
+      if (!r) { for (const a of prevOn(base)) accounts.push(a); continue; }               // not checked this time: keep what we knew
+      if (r.v) {
+        probed[code] = { at: now, ok: true };
+        const ps = r.v.ps;
+        if (!LOCALES[code] && /^[A-Z]{3}$/.test(ps.localeCurrency || '') && ps.marketplaceId) {   // a country we do not know yet
+          countrySites.locales[code] = { label: countrySites.names[code] || code, cur: ps.localeCurrency, mid: ps.marketplaceId, tld: new URL(base).host.split('.amazon.')[1] || '' };
+          applyDiscovered(countrySites);
+        }
+        for (const a of discover(r.v.html, ps)) if (!accounts.some((x) => x.id === a.id)) accounts.push({ id: a.id, base, locales: [code] });
+      } else if (was && was.ok) {
+        probed[code] = { at: now, ok: true };                                              // it worked before: say so (signed out?)
+        siteErrors[code] = { message: r.e instanceof AuthError ? `Not signed in to ${new URL(base).host}` : r.e.message, url: base };
+      } else probed[code] = { at: now, ok: false };                                         // no account there (or not reachable): stay silent
+    }
+    applyDiscovered(countrySites);
+    await chrome.storage.local.set({ countrySites, sitesProbed: probed });
+    await applyHeaderRules();
   }
-  await chrome.storage.local.set({ accounts, accountsAt: Date.now(), accountsSiteErrors: siteErrors });
+  await chrome.storage.local.set({ accounts, accountsAt: now, accountsSiteErrors: siteErrors });
   return { accounts, siteErrors };
 }
 
@@ -204,7 +282,7 @@ function apiHeaders(ctx, acct, loc) {
     Accept: 'application/json, text/plain, */*',
     'X-CSRF-Token': ctx.csrf,
     Authorization: 'Bearer ' + ctx.ps.associateIdentityToken,
-    marketplaceId: LOCALES[loc].mid, locale: ctx.ps.locale, storeId: acct,
+    marketplaceId: (ctx.base !== BASE && ctx.ps.marketplaceId) || LOCALES[loc].mid, locale: ctx.ps.locale, storeId: acct,
     customerId: ctx.ps.customerId, programId: ctx.ps.programId,
     roles: (ctx.ps.roles || ['Primary']).join(','), language: ctx.ps.language,
     'X-Requested-With': 'XMLHttpRequest'
@@ -706,14 +784,25 @@ async function load(req) {
   for (const k of Object.keys(cache)) if (cache[k].at < weekAgo) delete cache[k];
 
   await setStatus({ loading: true, done: 0, total: 0, errors: [], error: null, startedAt: Date.now() });
+  refreshRates();
   try {
     const { accounts, siteErrors } = await discoverAll(settings, req, pro);
     await chrome.storage.local.set({ accounts });
     await setStatus({ siteErrors: { ...siteErrors } });
-    for (const loc of Object.keys(SEPARATE_SITES)) {
-      const host = new URL(SEPARATE_SITES[loc]).host;
-      if (siteErrors[loc] && /^Not signed in/.test(siteErrors[loc].message)) await authAlert(`site:${loc}`, `Signed out of ${host}`, `${LOCALES[loc].label} data is paused. Sign in at ${host} to resume.`, SEPARATE_SITES[loc]);
+    const siteBase = (loc) => accounts.find((a) => a.base !== BASE && (a.locales || []).includes(loc))?.base || allSites()[loc];
+    for (const loc of new Set([...Object.keys(siteErrors), ...accounts.filter((a) => a.base !== BASE).flatMap((a) => a.locales || [])])) {
+      if (!siteBase(loc) || !LOCALES[loc]) continue;
+      const host = new URL(siteBase(loc)).host;
+      if (siteErrors[loc] && /^Not signed in/.test(siteErrors[loc].message)) await authAlert(`site:${loc}`, `Signed out of ${host}`, `${LOCALES[loc].label} data is paused. Sign in at ${host} to resume.`, siteBase(loc));
       else if (!siteErrors[loc]) await authClear(`site:${loc}`);
+    }
+    if (pro && !settings.countriesCustom) {
+      const extra = [...new Set(accounts.filter((a) => a.base !== BASE).flatMap((a) => a.locales || []))].filter((l) => LOCALES[l] && !settings.countries.includes(l));
+      if (extra.length) {
+        settings.countries = [...settings.countries, ...extra];
+        const cur = (await chrome.storage.local.get('settings')).settings || {};
+        await chrome.storage.local.set({ settings: { ...cur, countries: settings.countries } });   // the dashboard picks this up and asks for the new countries
+      }
     }
     if (my !== gen) return;
     const freeStore = (accounts.find((a) => a.base === BASE) || {}).id;          // Free: ONE store, the main one (the first Amazon lists on the main Associates site)
@@ -872,8 +961,22 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onStartup.addListener(() => { chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES }); chrome.alarms.create('license', { periodInMinutes: PLAN_CFG.recheckHours * 60 }); licenseCheckIfDue().catch(() => {}).then(prewarm); });
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'refresh') prewarm(); else if (a.name === 'license') licenseCheckIfDue(true).catch(() => {}); });
 
+// The server pushes "your plan changed" (data message type 'plan'): ask for the plan right now, so a gift shows up in seconds.
+if (chrome.gcm && chrome.gcm.onMessage) chrome.gcm.onMessage.addListener((m) => { if (m && m.data && m.data.type === 'plan') licenseCheckIfDue(true).catch(() => {}); });
+
+// Opt-in usage events (button names only), for people who turned on "share anonymous usage": relayed by our server to Google Analytics.
+async function trackEvent(name) {
+  try {
+    const st = await chrome.storage.local.get(['settings', 'license']);
+    if (!st.settings || !st.settings.shareUsage || !/^[a-z_]{3,30}$/.test(String(name))) return;
+    const installId = st.license && st.license.installId; if (!installId) return;
+    await fetch(`${PLAN_CFG.api}/event`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ installId, version: chrome.runtime.getManifest().version, name }), credentials: 'omit', cache: 'no-store' });
+  } catch (_) { /* analytics must never get in the way */ }
+}
+
 chrome.runtime.onMessage.addListener((msg, _s, send) => {
   if (msg?.type === 'load') { load(msg); send({ ok: true }); }
+  else if (msg?.type === 'track') { trackEvent(msg.name); send({ ok: true }); }
   else if (msg?.type === 'license') {      // trial / activate / deactivate / refresh, asked from Settings -> Plan
     const a = msg.action;
     const run = a === 'login' ? signInPassword({ mode: msg.mode, email: String(msg.email || '').trim().slice(0, 190), password: String(msg.password || '').slice(0, 200) }) : a === 'google' ? signInGoogle()

@@ -18,6 +18,7 @@ const PLAN_CFG = {
   pricingUrl: 'https://affilyatics.com/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
   privacyUrl: 'https://affilyatics.com/privacy/',
   contactEmail: 'contact@affilyatics.com',                       // support address shown in the footer of the sign-in screen
+  gcmSenderId: '497058350733',                                   // Firebase project number: lets the server push "your plan changed" to this browser (chrome.gcm)
   trialDays: 14,
   recheckHours: 0.25            // the worker asks the server about the plan every 15 minutes (and the open window every 20 seconds)
 };

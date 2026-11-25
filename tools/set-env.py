@@ -1,8 +1,8 @@
 """Points the extension at your local server (WAMP) or at production.
 
     python tools/set-env.py local     -> https://affilyatics.neb/...   (to test on your computer)
-    python tools/set-env.py test      -> https://lab.affilyatics.com/...    (the shared test server, KEEPS the fixed extension id so Google sign-in works)
-    python tools/set-env.py prod      -> https://affilyatics.com/...    (what the store build must use: no fixed key)
+    python tools/set-env.py test      -> https://lab.affilyatics.com/...    (the shared test server)
+    python tools/set-env.py prod      -> https://affilyatics.com/...    (what GitHub and the store build use)
     python tools/set-env.py           -> shows the current setting
 
 Only the four addresses in PLAN_CFG (plan.js) change. After switching, reload the extension in chrome://extensions.
@@ -40,18 +40,15 @@ for key, tail in KEYS:
         sys.exit(1)
 open(P, 'w', encoding='utf8', newline='').write(s)
 
-# manifest: the local build gets a fixed extension id (needed for the Google sign-in redirect address), the store build must not have a key
+# manifest: the public key is ALWAYS present (fixed extension id for local and GitHub installs; the Google redirect address is
+# registered for it). It is only left out of the Web Store zip, by tools/package.py.
 import json
 MP = os.path.join(ROOT, 'manifest.json')
 raw = open(MP, encoding='utf8', newline='').read()
 nl = '\r\n' if '\r\n' in raw else '\n'
 man = json.loads(raw)
 dev = json.load(open(os.path.join(ROOT, 'tools', 'dev-extension-key.json'), encoding='utf8'))
-if env in ('local', 'test'):
-    man['key'] = dev['key']        # fixed extension id: the Google redirect address is registered for it
-else:
-    man.pop('key', None)
+man['key'] = dev['key']
 open(MP, 'w', encoding='utf8', newline='').write(json.dumps(man, indent=2, ensure_ascii=False).replace('\n', nl) + nl)
-if env in ('local', 'test'):
-    print('Extension id (fixed):', dev['id'], '-> Google redirect address: https://%s.chromiumapp.org/' % dev['id'])
+print('Extension id (fixed):', dev['id'], '-> Google redirect address: https://%s.chromiumapp.org/' % dev['id'])
 print('Extension now points at', env, '->', base, '(reload it in chrome://extensions)')

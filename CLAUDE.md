@@ -77,3 +77,10 @@ Demo for the website: `node tools/build-demo.js <site>/demo` (also copies `plan.
 
 ## Note (2026-11-24)
 The website and backend moved to their own repo (`nebylba/affilyatics.com`). `tools/set-env.py` and `plan.js` still point at `eblyn.com/Affilyatics/` and the old `eblyn.local`; they switch to `https://affilyatics.com/` (and `https://affilyatics.neb/` for local) in the go-live phase, together with the new production public key in `plan.js`.
+
+## Two copies of the extension (owner's rule, 2026-11-25)
+- `C:\Perso\EBLYN\Projects\Affilyatics` (this git repo, `nebylba/Affilyatics`): points at https://affilyatics.com; what GitHub users and the store get.
+- `C:\Perso\EBLYN\Projects\Affilyatics.local` (not a git repo): the owner's copy for localhost. It points at https://affilyatics.neb (local DB `affilyatics_dev`, local backoffice). It was made with `python tools/set-env.py local`.
+- **Every extension change is made in BOTH folders**; the only difference is the four server addresses in `plan.js`. Never run `set-env.py` in this folder (it would point the git copy at localhost); use it only in `Affilyatics.local`.
+- Both folders carry the same `key` in `manifest.json` (same extension id `fhccbomkecngijcmapafebjbbbmenahl`, registered with Google for sign-in), so Chrome can only load ONE of them at a time: remove one before loading the other.
+- Do not push until the owner says so.

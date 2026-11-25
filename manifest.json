@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Affilyatics",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Your Amazon Associates earnings in one click: all stores and countries, live up to today, with alerts. Free, with a Pro plan.",
   "minimum_chrome_version": "116",
   "homepage_url": "https://affilyatics.com/",
@@ -15,14 +15,35 @@
     "storage",
     "alarms",
     "declarativeNetRequest",
-    "identity"
+    "identity",
+    "gcm"
   ],
   "optional_permissions": [
     "notifications"
   ],
   "host_permissions": [
     "https://affiliate-program.amazon.com/*",
+    "https://affiliate-program.amazon.co.uk/*",
+    "https://partnernet.amazon.de/*",
+    "https://partenaires.amazon.fr/*",
+    "https://affiliate.amazon.co.jp/*",
     "https://associates.amazon.ca/*",
+    "https://programma-affiliazione.amazon.it/*",
+    "https://afiliados.amazon.es/*",
+    "https://affiliate-program.amazon.in/*",
+    "https://associados.amazon.com.br/*",
+    "https://afiliados.amazon.com.mx/*",
+    "https://affiliate-program.amazon.com.au/*",
+    "https://affiliate-program.amazon.ae/*",
+    "https://affiliate-program.amazon.sg/*",
+    "https://partnernet.amazon.nl/*",
+    "https://affiliate-program.amazon.sa/*",
+    "https://affiliate-program.amazon.se/*",
+    "https://affiliate-program.amazon.pl/*",
+    "https://affiliate-program.amazon.com.be/*",
+    "https://affiliate-program.amazon.ie/*",
+    "https://gelirortakligi.amazon.com.tr/*",
+    "https://affiliate-program.amazon.eg/*",
     "https://identitytoolkit.googleapis.com/*"
   ],
   "background": {
@@ -36,5 +57,6 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiguRPnESyHU+sgmtJGw5uABIMaxtWYzD69dlxFhwl96ekPuUQE/D8qHMZdgsf6esVhXm1wuUgwxUVjbtnS0uXBiOfBEAMQFK81nmui4LSYrOG/gj5hirgqVr2r6oGCvJaPXZvFmgGk8aGMe9HS5eNI9cpm/Uk6QBloOXtOD+dfqgDndAkm/U6caPTLVsjNKT2FW1VZSHL7DKKfQMrtUjWk28kIkXHzQb5nwmRisjjcACmU+IcliY5gcrGE7LLD14TzZsTqdWgWaFWxulIH2UUHcKE/b9gYWFGMu1hO9v9PbYgzE8Ubs6da6ijN/+byBAcnHAi7HAJxm+LCyl78OOSQIDAQAB"
 }

@@ -31,7 +31,8 @@ Current version: see `manifest.json`.
 ## Install
 
 - **Chrome Web Store:** <https://chromewebstore.google.com/detail/pikaeildnladnpjcakoglpheegipkokg> (approved; unlisted, anyone with the link can install it).
-- The source repository is private; the store build is the supported way to install.
+- **From GitHub** (<https://github.com/nebylba/Affilyatics>): download the code, open `chrome://extensions`, enable *Developer mode*, *Load unpacked* and pick the folder.
+  `manifest.json` carries the extension's public `key`, so every GitHub/unpacked install gets the same fixed id (`fhccbomkecngijcmapafebjbbbmenahl`); Google sign-in needs that, because its return address (`https://<id>.chromiumapp.org/`) is registered for this id. The Web Store zip is built without the key (`python tools/package.py`), and has its own id.
 
 The extension talks to the hosted service at https://affilyatics.com for accounts and plans (the Free plan needs no payment). The server code is not part of this repository.
 

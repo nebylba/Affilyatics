@@ -152,6 +152,19 @@ async function signInGoogle() {
   } catch (e) { return { ok: false, error: /^[a-z_]+$/.test(e.message) && e.message !== 'bad' ? e.message : 'google_failed' }; }
 }
 
+// ---- push: the server can tell this browser "your plan changed" (a gift, a purchase, a trial change) and it asks at once ----------
+// Registers with Chrome's gcm API once; the token goes to our server with each plan check. No push (offline, blocked)? The normal checks still run.
+async function ensurePush() {
+  try {
+    if (!chrome.gcm || !PLAN_CFG.gcmSenderId) return null;
+    const { pushId } = await chrome.storage.local.get('pushId');
+    if (pushId) return pushId;
+    const id = await new Promise((res) => chrome.gcm.register([PLAN_CFG.gcmSenderId], (r) => res(chrome.runtime.lastError ? null : r)));
+    if (id) await chrome.storage.local.set({ pushId: id });
+    return id || null;
+  } catch (_) { return null; }
+}
+
 // ---- plan: 'status' | 'trial' | 'redeem' ----------------------------------------------------------------
 // Returns { ok, error?, plan }. A refused or expired account token signs the browser out (the dashboard shows the sign-in screen).
 async function licenseSync(route, extra = {}) {
@@ -159,7 +172,7 @@ async function licenseSync(route, extra = {}) {
   let lic = await getLicense();
   if (!accountOk(lic)) return { ok: false, error: 'unauthorized', plan: 'free' };
   const body = { installId, version: chrome.runtime.getManifest().version, accountToken: lic.account.token, ...extra };
-  if (route === 'status') { const u = await usagePayload(); if (u) body.usage = u; }
+  if (route === 'status') { const u = await usagePayload(); if (u) body.usage = u; const p = await ensurePush(); if (p) body.push = p; }
   let resp;
   try { resp = await apiCall(route, body); }
   catch (e) { await saveLicense({ ...lic, lastError: e.message, lastTryAt: Date.now() }); return { ok: false, error: e.message, plan: planOf(lic) }; }

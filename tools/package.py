@@ -2,6 +2,7 @@
 
     python tools/package.py [output.zip]
 
+The "key" of manifest.json (fixed id for GitHub/local installs) is left out of the zip.
 Only what the extension needs at run time goes in: no docs, tools, store listing, tests, git or notes.
 Checks first: manifest version, description length (store limit 132), every file the manifest and popup.html point at exists,
 and the license public key is not empty.
@@ -28,8 +29,9 @@ if re.search(r"(api|signinUrl):\s*'http://", plan) or 'eblyn.local' in plan or '
 if 'https://affilyatics.com/' not in plan:
     fail('plan.js api address looks wrong')
 
-if 'key' in m:
-    fail('manifest.json has a "key" (local testing): run  python tools/set-env.py prod  first')
+# manifest.json keeps the public "key" (fixed extension id for GitHub / local installs, so the Google sign-in redirect works).
+# The STORE build must not have it: the Web Store assigns its own id, so the key is removed from the manifest inside the zip.
+store_manifest = {k: v for k, v in m.items() if k != 'key'}
 need = set(INCLUDE_FILES)
 for f in need:
     if not os.path.isfile(os.path.join(ROOT, f)):
@@ -48,7 +50,10 @@ if os.path.exists(OUT):
 count = 0
 with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:
     for f in INCLUDE_FILES:
-        z.write(os.path.join(ROOT, f), f); count += 1
+        if f == 'manifest.json':
+            z.writestr(f, json.dumps(store_manifest, indent=2, ensure_ascii=False) + '\n'); count += 1
+        else:
+            z.write(os.path.join(ROOT, f), f); count += 1
     for d in INCLUDE_DIRS:
         for dp, _, files in os.walk(os.path.join(ROOT, d)):
             for fn in sorted(files):

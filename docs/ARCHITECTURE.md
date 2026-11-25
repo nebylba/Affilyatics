@@ -39,7 +39,9 @@ The popup never talks to Amazon. It asks the worker to `load` a period and rende
 | Key | Content |
 |---|---|
 | `cache` | `{ "<acct>|<loc>|<period>|<dim>": { v, at, range, rows, lu?, active? } }`. Entries older than 7 days are dropped. |
-| `accounts` | discovered stores and the countries each can report. |
+| `accounts` | discovered stores and the countries each can report (`base` = the Associates site it lives on). |
+| `countrySites` | the country -> site list read from Amazon's country switcher, plus countries Amazon added later (`applyDiscovered`). |
+| `sitesProbed` | per country site: when it was last checked and whether the user has an account there. |
 | `settings` | enabled countries/accounts, default period, notification toggles. |
 | `status` | loading progress, errors, `updatedAt`, `siteErrors`, signed-out flag. |
 | `notif` / `notifySnap` | notification list and the per-month snapshots used to detect "new" events. |
