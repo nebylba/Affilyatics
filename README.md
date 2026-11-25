@@ -63,3 +63,7 @@ Quick syntax check: `node --check popup.js && node --check background.js && node
 - [docs/AMAZON_REPORT_GAP.md](docs/AMAZON_REPORT_GAP.md): the "Amazon dropped a day" incident and the protection built for it.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md): what changed, newest first.
 - [CLAUDE.md](CLAUDE.md): working notes for Claude Code sessions in this repo.
+
+## License
+
+Source-available, not open source: you can read the code and run an unmodified copy under your own plan, but you may not redistribute it, build on it, or bypass the plan checks. See [LICENSE](LICENSE). Security reports are welcome (contact@affilyatics.com).

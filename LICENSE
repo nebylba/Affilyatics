@@ -1,0 +1,45 @@
+Affilyatics Source-Available License, version 1.0
+
+Copyright (c) 2026 Affilyatics. All rights reserved.
+
+The source code in this repository is published so that people can see what the Affilyatics browser extension does with their data. It is NOT
+open source. Please read the rules below.
+
+1. WHAT YOU MAY DO
+   a. Read, study and audit the source code.
+   b. Install and run an UNMODIFIED copy of the extension (from the Chrome Web Store or from this repository) for your own personal or business
+      use, with your own Amazon Associates accounts, under the plan you actually have (Free, trial, or a paid or gifted licence).
+   c. Report security problems (see section 5).
+
+2. WHAT YOU MAY NOT DO
+   a. Modify the code to remove, bypass or change the plan, trial, licence, account or sign-in checks, or to unlock features that your plan does not
+      include.
+   b. Copy, redistribute, publish, sell, rent or sublicense the code, or any modified or derived version of it, in whole or in part, including
+      repackaging it for the Chrome Web Store or any other store, website or repository.
+   c. Use the code, the licence-server protocol or the Affilyatics API to build another product or service, or a competing or derivative one.
+   d. Use the name "Affilyatics", its logos, icons or other branding for any other product or service, or in a way that suggests it is yours.
+   e. Remove or alter copyright or licence notices.
+   f. Interfere with, overload, scrape or attack the Affilyatics website, license server or backoffice, or access data that is not yours.
+
+3. THIRD-PARTY MATERIAL
+   The Oswald font files in `fonts/` are licensed under the SIL Open Font License 1.1 by their authors; that licence applies to them, not this one.
+   "Amazon", "Amazon Associates" and related names are trademarks of Amazon.com, Inc. or its affiliates. Affilyatics is independent: it is not
+   affiliated with, endorsed by or sponsored by Amazon.
+
+4. NO WARRANTY, LIMITED LIABILITY
+   The software is provided "as is", without warranty of any kind. To the maximum extent allowed by law, Affilyatics is not liable for any loss
+   or damage arising from its use, including loss of data, revenue or profit. You are responsible for following the rules of the Amazon
+   Associates programme and of your own accounts.
+
+5. SECURITY REPORTS
+   Good-faith security research is welcome. Report problems to contact@affilyatics.com and give us a reasonable time to fix them before you
+   publish anything. Do not access, change or delete other people's data, and do not disrupt the service.
+
+6. TERMINATION
+   Your rights under this licence end automatically if you break it. Then you must stop using and delete every copy of the code you hold, other
+   than the copy installed from the Chrome Web Store under the Affilyatics terms of service (https://affilyatics.com/terms/).
+
+7. OTHER TERMS
+   Use of the Affilyatics service (accounts, plans, payments) is governed by the terms at https://affilyatics.com/terms/ and the privacy policy at
+   https://affilyatics.com/privacy/. All rights not expressly granted here are reserved. If you want to use the code in a way this licence does
+   not allow, ask first: contact@affilyatics.com.
