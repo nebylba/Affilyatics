@@ -84,3 +84,6 @@ The website and backend moved to their own repo (`nebylba/affilyatics.com`). `to
 - **Every extension change is made in BOTH folders**; the only difference is the four server addresses in `plan.js`. Never run `set-env.py` in this folder (it would point the git copy at localhost); use it only in `Affilyatics.local`.
 - Both folders carry the same `key` in `manifest.json` (same extension id `fhccbomkecngijcmapafebjbbbmenahl`, registered with Google for sign-in), so Chrome can only load ONE of them at a time: remove one before loading the other.
 - Do not push until the owner says so.
+
+## Chrome Web Store material
+Everything about the store listing (texts, screenshots, promo images, resubmission guide, helper scripts) lives in the PRIVATE website repo: `C:\Perso\EBLYN\Projects\Affilyatics.com\chrome-store\` (see its README). Do not put listing drafts back in this public repo.
