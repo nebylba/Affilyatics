@@ -4,8 +4,11 @@ A Chrome extension (Manifest V3) that turns Amazon Associates reporting into a l
 countries in one popup, flexible periods, an interactive chart, per-source income cards, estimates of what is still to
 come, and notifications for new orders and commissions.
 
-It runs entirely in your browser. It reuses your existing signed-in Associates session (cookies), calls the same
-reporting endpoints the Associates site uses, and keeps everything in `chrome.storage`. Nothing is sent anywhere else.
+It runs in your browser. It reuses your existing signed-in Associates session (cookies), calls the same
+reporting endpoints the Associates site uses, and keeps your earnings data in `chrome.storage`: that data never leaves
+your browser. The only thing sent to our server (https://affilyatics.com) is what the account and plan need: a random
+installation id, the extension version, your plan and your account token (plus a license key if you enter one). A free
+account (email or Google) is required. See https://affilyatics.com/privacy/.
 
 Current version: see `manifest.json`.
 
@@ -25,7 +28,18 @@ Current version: see `manifest.json`.
 - **Amazon report gap protection**: if Amazon's report suddenly drops a recent day, the last known values are kept,
   marked in orange, and explained (banner, chart tooltip, notification, "Copy details").
 
-## Install (development)
+## Install
+
+- **Chrome Web Store:** link coming as soon as the review is done.
+- **From source (anyone can do this):**
+  1. `git clone https://github.com/nebylba/Affilyatics.git`
+  2. Open `chrome://extensions`, enable *Developer mode*, press *Load unpacked* and pick the cloned folder.
+  3. Sign in to <https://affiliate-program.amazon.com> in the same Chrome profile, open the extension and press *Sign in*.
+  4. Sign in with **email and password** (create a free account on the sign-in page). *Sign in with Google* only works in the Chrome Web Store build, because Google must know the extension's id.
+
+The extension talks to the hosted service at https://affilyatics.com for accounts and plans (the Free plan needs no payment). The server code is not part of this repository.
+
+## Development
 
 1. Open `chrome://extensions`, enable *Developer mode*.
 2. *Load unpacked* and pick this folder.

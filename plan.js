@@ -17,7 +17,7 @@ const PLAN_CFG = {
   signinUrl: 'https://affilyatics.com/signin/',      // the page where people sign in (Firebase: email or Google)
   pricingUrl: 'https://affilyatics.com/#plans',     // where "Upgrade" goes (a Freemius checkout link once the product exists)
   privacyUrl: 'https://affilyatics.com/privacy/',
-  contactEmail: 'contact@eblyn.com',                       // support address shown in the footer of the sign-in screen
+  contactEmail: 'contact@affilyatics.com',                       // support address shown in the footer of the sign-in screen
   trialDays: 14,
   recheckHours: 0.25            // the worker asks the server about the plan every 15 minutes (and the open window every 20 seconds)
 };

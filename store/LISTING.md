@@ -10,7 +10,7 @@ Everything to paste into the Developer Dashboard. Screenshots are in this folder
 - **Short description** (manifest `description`, 132 characters max):
   Your Amazon Associates earnings in one click: all stores and countries, live up to today, with alerts. Free, with a Pro plan.
 - **Website:** https://affilyatics.com/  (live since the move)
-- **Support email:** contact@eblyn.com  (after the move: contact@affilyatics.com)
+- **Support email:** contact@affilyatics.com  (after the move: contact@affilyatics.com)
 - **Privacy policy URL:** https://affilyatics.com/privacy/
 
 ## Detailed description
