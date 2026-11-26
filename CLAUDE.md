@@ -87,3 +87,4 @@ The website and backend moved to their own repo (`nebylba/affilyatics.com`). `to
 
 ## Chrome Web Store material
 Everything about the store listing (texts, screenshots, promo images, resubmission guide, helper scripts) lives in the PRIVATE website repo: `C:\Perso\EBLYN\Projects\Affilyatics.com\chrome-store\` (see its README). Do not put listing drafts back in this public repo.
+- The GitHub repo `nebylba/Affilyatics` has been PUBLIC since 2026-11-26 (it was private before). Never commit secrets, server addresses or personal details here; anything pushed is world-readable. Internal notes belong in the private website repo.
