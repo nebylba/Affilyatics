@@ -4,6 +4,7 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-25
 
+- **New README**: logo, hero image, screenshots, features, Free/Pro table, install, privacy, file map and docs links; images in `docs/images/` (including `social-preview.png`, 1280x640, for GitHub's Social preview setting).
 - **Store material moved out of this public repo**: the `store/` folder (listing texts, screenshots, resubmission guide) now lives, complete, in the private website repo (`Affilyatics.com/chrome-store/`, never deployed). It is no longer here.
 - **Licence added**: `LICENSE` (Affilyatics Source-Available License 1.0: read and run unmodified, no redistribution, no bypassing the plan checks) and a README section. Also a step-by-step guide to resubmit the extension to the Chrome Web Store (now in the private website repo, folder `chrome-store/`).
 - **Release 5.1.0** (new Web Store submission; the version number stays in the 5.x series): everything listed below for 2026-11-25. New permissions to explain to the store: `gcm` and the 21 other Amazon Associates sites (the store listing texts are in the private website repo, folder `chrome-store/`).
