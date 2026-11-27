@@ -467,6 +467,8 @@ const bdConv = Object.assign((v) => (v.clicks ? pct(v.ordered, v.clicks) : '—'
 //   estimate        = pending revenue x your commission rate (earnings / shipped revenue)
 // The rate is your blended rate over the categories you actually sell (the categories of the pending items are unknown).
 // Without a usable rate it falls back to earnings per shipped item. Computed per currency.
+// With pending items but nothing to price the commission from (no shipment with earnings in the window), the currency is
+// still returned with est = 0: the items are shown as pending, never hidden behind "None pending". No rate is made up.
 const PENDING_DAYS = 90;
 function pendingRows() {
   const out = []; let loaded = false;
@@ -496,9 +498,12 @@ function pendingShipments(rows) {
       if (gap > 0 && gap <= t.ordRev) pendingRev = gap;
       else if (items && avgPrice) { pendingRev = items * avgPrice; method = 'avg'; }
       est = pendingRev * rate;
+    } else if (items) {
+      if (gap > 0 && gap <= t.ordRev) pendingRev = gap;
+      else if (avgPrice) { pendingRev = items * avgPrice; method = 'avg'; }
     }
     if (!est && items && t.shp > 0 && t.earn > 0) { est = items * t.earn / t.shp; method = 'item'; }
-    if (est > 0) out[c] = { items, pendingRev, rate, est, method };
+    if (est > 0 || items) out[c] = { items, pendingRev, rate, est, method };
   }
   return out;
 }
@@ -506,16 +511,24 @@ function pendingShipments(rows) {
 function pendingStat() {
   const { rows, loaded } = pendingRows();
   const p = pendingShipments(rows);
-  const curs = Object.keys(p).sort((a, b) => usdish(p[b].est, b) - usdish(p[a].est, a));
-  const items = curs.reduce((s, c) => s + p[c].items, 0);
+  const all = Object.keys(p);
+  const curs = all.filter((c) => p[c].est > 0).sort((a, b) => usdish(p[b].est, b) - usdish(p[a].est, a));
+  const unpriced = all.filter((c) => !(p[c].est > 0));
+  const items = all.reduce((s, c) => s + p[c].items, 0);
   const value = curs.length
-    ? ('~' + fmtMoney(p[curs[0]].est, curs[0]) + (curs.length > 1 ? `<span class="muted xtra" title="${esc(curs.slice(1).map((c) => '~' + fmtMoney(p[c].est, c)).join(' · '))}">+${curs.length - 1}</span>` : '')) 
-    : `<span class="muted">${loaded ? 'None pending' : '…'}</span>`;
-  const help = 'This is only an estimate, not a figure fetched from Amazon. It is calculated from your recent activity: ordered revenue minus shipped revenue over the last ' + PENDING_DAYS + ' days, multiplied by your commission rate (earnings divided by shipped revenue). When that difference is not usable it values the pending items at your average ordered price instead. It does not depend on the selected period. Commission is only paid when an item ships, so cancelled or returned orders will lower the real amount.';
-  const cnt = curs.length ? `<span class="cnt">${fmtNum(items)} item${items === 1 ? '' : 's'}</span>` : '';
+    ? ('~' + fmtMoney(p[curs[0]].est, curs[0]) + (curs.length > 1 ? `<span class="muted xtra" title="${esc(curs.slice(1).map((c) => '~' + fmtMoney(p[c].est, c)).join(' · '))}">+${curs.length - 1}</span>` : ''))
+    : `<span class="muted">${unpriced.length ? 'No estimate' : loaded ? 'None pending' : '…'}</span>`;
+  let help = 'This is only an estimate, not a figure fetched from Amazon. It is calculated from your recent activity: ordered revenue minus shipped revenue over the last ' + PENDING_DAYS + ' days, multiplied by your commission rate (earnings divided by shipped revenue). When that difference is not usable it values the pending items at your average ordered price instead. It does not depend on the selected period. Commission is only paid when an item ships, so cancelled or returned orders will lower the real amount.';
+  if (unpriced.length) {
+    const what = unpriced.map((c) => `${fmtNum(p[c].items)} item${p[c].items === 1 ? '' : 's'}` + (p[c].pendingRev > 0 ? ` (about ${fmtMoney(p[c].pendingRev, c)} of sales)` : '')).join(', ');
+    const why = `Pending with no commission estimate yet: ${what}. Nothing with earnings has shipped there in the last ${PENDING_DAYS} days, so your commission rate is unknown.`;
+    help = curs.length ? help + ' ' + why : why + ' An estimate appears once a shipment with earnings is reported.';
+  }
+  const cnt = all.length ? `<span class="cnt">${fmtNum(items)} item${items === 1 ? '' : 's'}</span>` : '';
   const perLoc = {};
   for (const l of selLocales()) { const q = pendingShipments(rows.filter((r) => r.loc === l)); const c = Object.keys(q)[0]; perLoc[l] = c ? { est: q[c].est, items: q[c].items, cur: c } : { est: 0, items: 0, cur: LOCALES[l].cur }; }
-  const bdFmt = Object.assign((v) => (v.est ? `~${fmtMoney(v.est, v.cur)} · ${fmtNum(v.items)} item${v.items === 1 ? '' : 's'}` : '—'), { raw: (v) => v.est });
+  const nItems = (v) => `${fmtNum(v.items)} item${v.items === 1 ? '' : 's'}`;
+  const bdFmt = Object.assign((v) => (v.est ? `~${fmtMoney(v.est, v.cur)} · ${nItems(v)}` : v.items ? `${nItems(v)} · no estimate` : '—'), { raw: (v) => v.est || v.items });
   return `<div class="stat" style="--c:var(--s-pending)"${bdAttr('Pending shipments', perLoc, bdFmt)}><i></i><span class="l">Pending shipments <span class="help" tabindex="0" data-tip="${esc(help)}">?</span></span><b>${value}</b>${cnt}</div>`;
 }
 

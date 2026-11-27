@@ -25,6 +25,10 @@ a `~` and a "?" tooltip.
   2. `estimate = pending revenue x commission rate`, rate = earnings / shipped revenue (90 days).
   3. Without a usable rate: `pending items x earnings per shipped item`.
   4. `pending items = ordered items - shipped items` (90 days) is the count shown at the right.
+  5. Pending items with nothing to price them from (no shipment with earnings in the 90 days) are still shown: the card
+     says "No estimate" with the item count, the "?" gives the pending sales value, and no commission rate is assumed.
+     With several currencies, the money is for those that have an estimate; the item count covers all of them.
+     "None pending" appears only when there is neither a pending item nor an estimate.
   Limits: "ordered minus shipped" is not Amazon's list of open orders (older shipments shrink it, cancellations inflate it);
   returns are not subtracted; the rate is your blended rate, not the category rate of the pending items.
   The per-country hover estimates each country separately, so it may not add up exactly to the card.

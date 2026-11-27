@@ -4,6 +4,7 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-27
 
+- **Release 5.1.3, fix: "None pending" although an order had not shipped.** When no shipment with earnings existed in the last 90 days (new affiliate, new country or store), no commission estimate could be computed and the whole line was dropped. The card now shows "No estimate" with the number of pending items; the "?" gives their sales value, and the per-country hover lists them too. No new permissions.
 - **Release 5.1.2**: the server now signs licence answers with the new key; the old licence key is no longer accepted. No change in behaviour or permissions.
 - **Release 5.1.1**: licence answers are accepted when signed with either the current licence key or the next one, so the server can change keys later without another release. No change in behaviour or permissions.
 
