@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Affilyatics",
-  "version": "5.1.1",
+  "version": "5.1.2",
   "description": "Your Amazon Associates earnings in one click: all stores and countries, live up to today, with alerts. Free, with a Pro plan.",
   "minimum_chrome_version": "116",
   "homepage_url": "https://affilyatics.com/",

@@ -9,9 +9,7 @@ const PLAN_CFG = {
   // Where the license server lives. Changing the domain later means releasing an extension update.
   api: 'https://affilyatics.com/api/v1',
   // Public half of the signing key (base64 SPKI). The matching private key lives only on the server (php _lib/make-keys.php).
-  publicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxceWprn33HVNKGLIxsVn/HMsuSwaGcnIINdYR2YDRZai/j00oxzirfY6fKuBq8TlTu+1P8zOGaj/f3OpCNMp90ONaIRBCgh6tRmT8jay/RErYebX4+j5zmnIjm3pcWvdLgWdnfV5PtsO/s9jD0GkuZ5CqIdBAgSNaMAY3cK4hGKe9ljX+avyIRE9clie3PbuavM2q6KlHnPSQn+/R8u+LmbD01o9q0ZOFW2kOOl9rM7zVO9aznx7s2/7mpZeYE9rJ6OFj1i9yqW7za6JIhZZnWD/nOSuK9MMbm0QnY3XHVEgEE7xUl4tP3ejzdR8261V9n/B8WNMZ4FVHXu2SFe8fQIDAQAB',
-  // The key the server will switch to later. Both are accepted so that the switch needs no further extension release.
-  publicKeyNext: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjHPLZISdgHXqXoTWZUu0ouTry0OIZXv7L7p+B42j9v3eF+LoUICSiGxtIl9SW/VKa5VUzrIljmmAk7mh2JMxQCINaC7dhTLwThGx1hglA08OrHaMfF41Wqrc0F/hiluphKRYPO8oNpKpUr1O4L3Wz/IkkI7SqBHffbJpz5H3/WifXQ68fWsuCPbLCfX+1+jaihvD/HoqNxFwejuBuOao942V5Vm1AC9CVxY4lWfd3ivIB+isf1MjGdQk4lqFewBVZOqRneQ2vhKK9jzK3MdHR+K2d58ziMt0F8t7sH6r/SKHurI1jtAnV+9COKhRHpsdIlSeg7lLE0kTh5z+SOdYiQIDAQAB',
+  publicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjHPLZISdgHXqXoTWZUu0ouTry0OIZXv7L7p+B42j9v3eF+LoUICSiGxtIl9SW/VKa5VUzrIljmmAk7mh2JMxQCINaC7dhTLwThGx1hglA08OrHaMfF41Wqrc0F/hiluphKRYPO8oNpKpUr1O4L3Wz/IkkI7SqBHffbJpz5H3/WifXQ68fWsuCPbLCfX+1+jaihvD/HoqNxFwejuBuOao942V5Vm1AC9CVxY4lWfd3ivIB+isf1MjGdQk4lqFewBVZOqRneQ2vhKK9jzK3MdHR+K2d58ziMt0F8t7sH6r/SKHurI1jtAnV+9COKhRHpsdIlSeg7lLE0kTh5z+SOdYiQIDAQAB',
   // Public web API key of the Firebase project (not a secret). Used for the sign-in forms inside the extension.
   firebase: { apiKey: 'AIzaSyBAkaKazUQKafNcPhzwua22S1ePH3UHe90' },
   // OAuth "Web client" id used for Google sign-in inside the extension (Google Cloud -> Credentials; see docs/Firebase-setup.md). Empty = Google button explains it is not set up.

@@ -4,6 +4,7 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-27
 
+- **Release 5.1.2**: the server now signs licence answers with the new key; the old licence key is no longer accepted. No change in behaviour or permissions.
 - **Release 5.1.1**: licence answers are accepted when signed with either the current licence key or the next one, so the server can change keys later without another release. No change in behaviour or permissions.
 
 ## 2026-11-25
