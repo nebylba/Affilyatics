@@ -2,6 +2,11 @@
 
 Newest first. Dates are when the change was made.
 
+## 2026-11-28
+
+- **5.1.3, updates install by themselves**: when Chrome has downloaded a new version, the extension now installs it at the first safe moment (not during a sign-in, a plan request or a data load, not while the dashboard window is focused, not while a signed-out dashboard is open); it retries every minute. An open dashboard is reopened afterwards without taking focus. This helps updates that come AFTER 5.1.3.
+- **5.1.3, desktop alerts asked on first install**: a new install opens the dashboard with a "Turn on desktop alerts?" card. "Allow notifications" opens Chrome's permission window (Chrome requires a click) and, if allowed, ticks Desktop alerts (they are delivered on Pro). "Not now" closes it for good. `notifications` stays an optional permission; existing users are not asked.
+
 ## 2026-11-27
 
 - **Release 5.1.3, fix: "None pending" although an order had not shipped.** When no shipment with earnings existed in the last 90 days (new affiliate, new country or store), no commission estimate could be computed and the whole line was dropped. The card now shows "No estimate" with the number of pending items; the "?" gives their sales value, and the per-country hover lists them too. No new permissions.

@@ -62,6 +62,17 @@ Tooltips: `.tip` (chart hover, with the held-day note), `.bdtip` (by-country bre
 attribute on a card), `.help::after` (the "?" explanations, driven by `data-tip`; the breakdown is hidden while the "?"
 is hovered so the explanation wins).
 
+## Updates and first install
+
+- **Updates**: Chrome holds a downloaded update while the extension is in use. `runtime.onUpdateAvailable` sets
+  `storage.session.updateReady` and an `update` alarm (every minute); `applyUpdate` calls `runtime.reload()` once
+  `safeToUpdate` says so: no plan or sign-in request running, no web sign-in pending, no data load running, no focused
+  dashboard window, and no open dashboard while signed out. An open dashboard is saved (`reopenDash`) and reopened by
+  `onInstalled` without taking focus (minimized stays minimized).
+- **First install**: `onInstalled` (reason `install`) sets `notifAsk` and opens the dashboard, which shows the desktop
+  alerts card. `chrome.permissions.request` only works from a click, so the card's button makes the request. Allowing
+  turns on `settings.notify.desktop` (delivered on Pro only). Answering either way removes `notifAsk`.
+
 ## Notifications
 
 `detectDay` compares each fresh "this month" fetch with the previous snapshot of the same store + country + month and

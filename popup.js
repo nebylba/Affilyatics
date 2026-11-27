@@ -963,7 +963,7 @@ function drawTour() {
 }
 // the very first time (and only when the dashboard is really on screen): offer the tour
 function maybeStartTour() {
-  if (!signedIn() || settings.tourDone || view.tourShown || view.tour != null || view.showSettings || status.signedOut || !accounts.length || isLoading()) return;
+  if (view.notifAsk || !signedIn() || settings.tourDone || view.tourShown || view.tour != null || view.showSettings || status.signedOut || !accounts.length || isLoading()) return;
   view.tourShown = true; view.tour = 0;
 }
 
@@ -1040,6 +1040,23 @@ function upsellHTML() {
     <div class="planbtns">${trialAvailable() ? `<button type="button" id="plantrial" class="primary" ${busy ? 'disabled' : ''}>Start my ${PLAN_CFG.trialDays}-day free trial</button>` : ''}<button type="button" data-open="${esc(PLAN_CFG.pricingUrl)}" ${trialAvailable() ? '' : 'class="primary"'}>See plans</button><button type="button" data-upclose="1">Not now</button></div>
     <p class="muted small" style="margin:10px 0 0">${trialAvailable() ? `${PLAN_CFG.trialDays} days of Pro, no credit card required. You stay on Free afterwards unless you subscribe.` : 'Already have a key? Paste it in Settings → Plan.'}</p>
   </div></div>`;
+}
+// First install: ask about desktop alerts without waiting for the person to find the tick box. Chrome only opens its
+// permission window after a click, hence this card. It stays until answered; `notifAsk` is set by the worker on install.
+function notifAskHTML() {
+  const pro = signedIn() && isProNow();
+  return `<div class="modalbg"><div class="modal" role="dialog" aria-modal="true" aria-label="Desktop alerts">
+    <button type="button" class="mclose" data-notifskip="1" aria-label="Close">✕</button>
+    <h2>Turn on desktop alerts?</h2><p>Get a pop-up on your computer for new orders and other alerts, even when this window is closed. Chrome will ask you to allow notifications.</p>
+    <div class="planbtns"><button type="button" id="notifallow" class="primary">Allow notifications</button><button type="button" data-notifskip="1">Not now</button></div>
+    <p class="muted small" style="margin:10px 0 0">${pro ? 'You can turn them off at any time from the bell.' : `Desktop alerts are part of Pro (new accounts can try it free for ${PLAN_CFG.trialDays} days).`}</p>
+  </div></div>`;
+}
+async function finishNotifAsk(granted) {
+  view.notifAsk = false;
+  await chrome.storage.local.remove('notifAsk');
+  if (granted) await saveSettings({ notify: { ...notifyConf(), desktop: true } }, false);
+  render();
 }
 function planBannerHTML() {
   if (view.justUnlocked && Date.now() - view.justUnlocked < 15000) return `<div class="banner plan good" role="status"><span>${view.unlockGift ? `🎁 <b>A gift for you!</b> ${view.unlockGift === 'lifetime' ? 'Lifetime Pro is now active: every feature, for good.' : 'One month of Pro is now active: all features are unlocked.'} Enjoy! ✨` : '🎉 <b>Congratulations!</b> Pro plan is now active and all features are unlocked. Enjoy! ✨'}</span><button type="button" id="dismissunlock" class="bclose" aria-label="Close" title="Close">✕</button></div>`;
@@ -1240,7 +1257,7 @@ function render() {
   $('#status').title = 'Checked automatically; only data that is due is re-downloaded.' + (stamps.length ? '\nAmazon data last updated: ' + stamps.join(' · ') : '');
   const upg = $('#upgradebtn'); if (upg) { const ti = trialInfo(); const wrap = upg.closest ? upg.closest('.upwrap') : null; upg.hidden = !signedIn() || (isProNow() && !ti); if (wrap) wrap.hidden = upg.hidden; const tipEl = $('#uptip'); if (tipEl) tipEl.innerHTML = upgradeTipHTML(ti); upg.textContent = ti ? `${ti.daysLeft} day${ti.daysLeft === 1 ? '' : 's'} left in Pro` : (trialAvailable() ? 'Upgrade to Pro for free' : 'Upgrade to Pro'); }          // Free plan only: a button next to the close X
   const chip = $('#planchip'); if (chip) { const w = planWords(); chip.textContent = w.chip; chip.className = 'planchip ' + (isProNow() ? 'pro' : 'free'); chip.title = w.line; chip.hidden = !signedIn(); }
-  const up = $('#upsell'); if (up) up.innerHTML = view.upsell ? upsellHTML() : '';
+  const up = $('#upsell'); if (up) up.innerHTML = view.upsell ? upsellHTML() : view.notifAsk && view.tour == null ? notifAskHTML() : '';
   const th = $('#theme'); if (th) { th.innerHTML = isDark() ? ICON_SUN : ICON_MOON; th.title = isDark() ? 'Switch to light mode' : 'Switch to dark mode'; }
   const gear = $('#gear');
   gear.innerHTML = view.showSettings ? ICON_BACK : ICON_GEAR;
@@ -1345,6 +1362,11 @@ async function planAction(kind) {
 document.addEventListener('click', async (e) => {
   const t = e.target;
   const q = (s) => t.closest(s);
+  if (view.notifAsk && !view.upsell && q('#notifallow')) {          // asked straight from the click: Chrome requires it
+    let asked; try { asked = chrome.permissions.request({ permissions: ['notifications'] }); } catch { asked = Promise.resolve(false); }
+    asked.then(finishNotifAsk, () => finishNotifAsk(false)); return;
+  }
+  if (view.notifAsk && q('[data-notifskip]')) { finishNotifAsk(false); return; }
   { const id = t.closest && t.closest('button[id]'); if (id && TRACKED_IDS.has(id.id)) track('ui_' + id.id); else if (q('[data-open]') && q('[data-open]').dataset.open === PLAN_CFG.pricingUrl) track('see_plans_click'); }
   if (anyPopOpen() && !q('.dd, .npanel, #bell, .apanel, #acct')) { closePops(); render(); }
   if (q('[data-tour]')) {
@@ -1532,7 +1554,7 @@ document.addEventListener('mouseleave', hideBd);
 if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('resize', () => { if (view.tour != null) drawTour(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target && (e.target.id === 'gmail' || e.target.id === 'gpass') && !view.planBusy) { e.preventDefault && e.preventDefault(); const b = $('#gsubmit'); if (b) listenerClick(b); return; }
   if (view.tour != null) { if (e.key === 'Escape') { endTour(); return; } if (e.key === 'ArrowRight' || e.key === 'Enter') { view.tour += 1; render(); return; } if (e.key === 'ArrowLeft') { view.tour = Math.max(0, view.tour - 1); render(); return; } }
-  if (e.key === 'Escape') { if (view.upsell) { view.upsell = null; render(); } else if (anyPopOpen()) { closePops(); render(); } } });
+  if (e.key === 'Escape') { if (view.notifAsk && !view.upsell) { finishNotifAsk(false); } else if (view.upsell) { view.upsell = null; render(); } else if (anyPopOpen()) { closePops(); render(); } } });
 
 chrome.storage.onChanged.addListener((ch) => {
   let dirty = false;
@@ -1558,7 +1580,7 @@ chrome.storage.onChanged.addListener((ch) => {
 (async () => {
   try {
     if (new URLSearchParams(location.search).has('full')) document.body.classList.add('full');
-    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState', 'license', 'countrySites', 'rates']);
+    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState', 'license', 'countrySites', 'rates', 'notifAsk']);
     applyDiscovered(st.countrySites); applyRates(st.rates); track('popup_open');
     license = st.license || {};
     settings = { ...DEFAULTS, ...(st.settings || {}) };
@@ -1568,7 +1590,9 @@ chrome.storage.onChanged.addListener((ch) => {
     if (settings.theme) { applyTheme(settings.theme); try { localStorage.setItem('affilyatics-theme', settings.theme); } catch (_) {} }
     restoreView(st.viewState);
     clampView();
+    view.notifAsk = !!st.notifAsk;
     render();
+    if (view.notifAsk) chrome.permissions.contains({ permissions: ['notifications'] }).then((has) => { if (has) finishNotifAsk(true); }).catch(() => {});
     if (signedIn()) requestLoad();
     if (signedIn()) chrome.runtime.sendMessage({ type: 'license', action: 'refresh' }).catch(() => {});      // ask the server about the plan right now   // the worker only asks the server when the answer is older than 12 hours
   } catch (e) {

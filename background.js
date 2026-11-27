@@ -953,13 +953,69 @@ async function purgeDemoNotifications() {
   const { notif } = await chrome.storage.local.get('notif');
   if (notif && (notif.items || []).some((i) => i.demo)) await chrome.storage.local.set({ notif: { ...notif, items: notif.items.filter((i) => !i.demo) } });
 }
-chrome.runtime.onInstalled.addListener(() => {
+// ---- updates ------------------------------------------------------------------------------------------
+// Chrome keeps a downloaded update waiting while the extension is in use, so with a dashboard left open an old version can
+// run for a long time. We install it ourselves at the first SAFE moment: not during a sign-in, a plan request or a data
+// load, and not while you are on the dashboard. A dashboard that was open comes back afterwards, without taking focus.
+let planRequests = 0;                 // sign-in / plan requests from the dashboard that are still running
+async function safeToUpdate() {
+  if (planRequests > 0 || opening) return false;
+  const { license, status } = await chrome.storage.local.get(['license', 'status']);
+  if (license?.pending && Date.now() - license.pending.at < 10 * 60000) return false;      // signing in on the web page
+  if (status?.loading && Date.now() - (status.startedAt || 0) < 120000) return false;      // figures being downloaded
+  const open = await dashboardContexts();
+  if (open.length && !license?.account) return false;                                      // typing in the sign-in form
+  for (const c of open) { try { if ((await chrome.windows.get(c.windowId)).focused) return false; } catch { /* closing */ } }
+  return true;
+}
+let applying = false;
+async function applyUpdate() {
+  if (applying) return;
+  applying = true;
+  try {
+    const { updateReady } = await chrome.storage.session.get('updateReady');
+    if (!updateReady || !(await safeToUpdate())) return;                                   // the 'update' alarm tries again
+    const open = await dashboardContexts();
+    if (open.length) {
+      let minimized = false;
+      try {
+        const w = await chrome.windows.get(open[0].windowId);
+        minimized = w.state === 'minimized';
+        if (w.state === 'normal') await chrome.storage.local.set({ dashBounds: { width: w.width, height: w.height, left: w.left, top: w.top } });
+      } catch { /* closing */ }
+      await chrome.storage.local.set({ reopenDash: { at: Date.now(), minimized } });
+    }
+    chrome.runtime.reload();                                                               // installs the waiting version
+  } finally { applying = false; }
+}
+chrome.runtime.onUpdateAvailable.addListener(async () => {
+  await chrome.storage.session.set({ updateReady: true });
+  chrome.alarms.create('update', { periodInMinutes: 1 });
+  await applyUpdate();
+});
+
+// First install: open the dashboard, which asks about desktop alerts (Chrome only shows its permission window after a
+// click, so the dashboard shows a card with an Allow button). After an update: bring back the dashboard we closed.
+async function afterInstall(details) {
+  await chrome.alarms.clear('update');
+  const { reopenDash } = await chrome.storage.local.get('reopenDash');
+  if (reopenDash) await chrome.storage.local.remove('reopenDash');
+  if (details?.reason === 'install') {
+    await chrome.storage.local.set({ notifAsk: true });
+    await openDashboard();
+  } else if (details?.reason === 'update' && reopenDash && Date.now() - reopenDash.at < 2 * 60000) {
+    await openDashboard({ background: true, minimized: reopenDash.minimized });
+  }
+}
+
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES, delayInMinutes: 0.1 });
   chrome.alarms.create('license', { periodInMinutes: PLAN_CFG.recheckHours * 60, delayInMinutes: 0.2 });
   purgeDemoNotifications().catch(() => {});                     // removes any left-over sample alerts
+  afterInstall(details).catch((e) => console.warn('[affilyatics] after install:', e.message));
 });
 chrome.runtime.onStartup.addListener(() => { chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES }); chrome.alarms.create('license', { periodInMinutes: PLAN_CFG.recheckHours * 60 }); licenseCheckIfDue().catch(() => {}).then(prewarm); });
-chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'refresh') prewarm(); else if (a.name === 'license') licenseCheckIfDue(true).catch(() => {}); });
+chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'refresh') prewarm(); else if (a.name === 'license') licenseCheckIfDue(true).catch(() => {}); else if (a.name === 'update') applyUpdate().catch(() => {}); });
 
 // The server pushes "your plan changed" (data message type 'plan'): ask for the plan right now, so a gift shows up in seconds.
 if (chrome.gcm && chrome.gcm.onMessage) chrome.gcm.onMessage.addListener((m) => { if (m && m.data && m.data.type === 'plan') licenseCheckIfDue(true).catch(() => {}); });
@@ -984,7 +1040,8 @@ chrome.runtime.onMessage.addListener((msg, _s, send) => {
       : a === 'trial' ? licenseSync('trial')
       : a === 'redeem' ? licenseSync('redeem', { licenseKey: String(msg.key || '').trim().slice(0, 80) })
       : licenseCheckIfDue(a !== 'check');            // 'check' (dashboard opened): only if the answer is older than 12 h; 'refresh' ("Check again"): always
-    run.then((r) => send(r), () => send({ ok: false, error: 'network' }));
+    planRequests++;
+    run.finally(() => { planRequests--; }).then((r) => send(r), () => send({ ok: false, error: 'network' }));
     return true;
   }
   return false;
@@ -1011,7 +1068,7 @@ async function dashboardContexts() {
 // One dashboard at a time: clicking the icon closes ALL previous ones, then opens a single fresh window
 // at the size/position you left it. (`opening` ignores a second click while this is in progress.)
 let opening = false;
-async function openDashboard() {
+async function openDashboard({ background = false, minimized = false } = {}) {
   if (opening) return;
   opening = true;
   try {
@@ -1028,6 +1085,8 @@ async function openDashboard() {
     const b = dashBounds || {};
     const opts = { url: DASH_BASE() + '?full=1', type: 'popup', width: b.width || 1280, height: b.height || 900 };
     if (Number.isFinite(b.left) && Number.isFinite(b.top)) { opts.left = b.left; opts.top = b.top; }
+    if (minimized) { delete opts.width; delete opts.height; delete opts.left; delete opts.top; opts.state = 'minimized'; }   // Chrome refuses bounds with a state
+    else if (background) opts.focused = false;
     try { await chrome.windows.create(opts); }
     catch (e) { console.warn('[affilyatics] window create failed, opening a tab:', e.message); await chrome.tabs.create({ url: DASH_BASE() + '?full=1' }); }
   } finally { opening = false; }
