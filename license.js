@@ -16,13 +16,16 @@ async function ensureInstallId() {
 }
 
 const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-let verifyKey = null;
+let verifyKeys = null;
 // The server signs the exact JSON text it sends. Returns the entitlement object, or throws Error('bad_signature').
 async function verifySigned(resp, installId) {
   try {
     if (!resp || typeof resp.payload !== 'string' || typeof resp.sig !== 'string') throw new Error('missing');
-    verifyKey ||= await crypto.subtle.importKey('spki', fromB64(PLAN_CFG.publicKey), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', verifyKey, fromB64(resp.sig), new TextEncoder().encode(resp.payload));
+    verifyKeys ||= await Promise.all([PLAN_CFG.publicKey, PLAN_CFG.publicKeyNext].filter(Boolean)
+      .map((k) => crypto.subtle.importKey('spki', fromB64(k), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'])));
+    const sig = fromB64(resp.sig), data = new TextEncoder().encode(resp.payload);
+    let ok = false;
+    for (const key of verifyKeys) { if (await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, data)) { ok = true; break; } }
     if (!ok) throw new Error('bad');
     const ent = JSON.parse(resp.payload);
     if (ent.installId !== installId) throw new Error('other install');   // an answer meant for another browser

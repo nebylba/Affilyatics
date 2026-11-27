@@ -2,6 +2,10 @@
 
 Newest first. Dates are when the change was made.
 
+## 2026-11-27
+
+- **Release 5.1.1**: licence answers are accepted when signed with either the current licence key or the next one, so the server can change keys later without another release. No change in behaviour or permissions.
+
 ## 2026-11-25
 
 - **New README**: logo, hero image, screenshots, features, Free/Pro table, install, privacy, file map and docs links; images in `docs/images/` (including `social-preview.png`, 1280x640, for GitHub's Social preview setting).
