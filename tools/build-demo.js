@@ -12,7 +12,7 @@ for (const f of ['popup.js', 'shared.js', 'theme.js']) fs.copyFileSync(path.join
 // the website demo always points at the PUBLIC addresses, even while the extension is set to your local server
 fs.writeFileSync(path.join(app, 'plan.js'), fs.readFileSync(path.join(root, 'plan.js'), 'utf8').replace(/https:\/\/(affilyatics\.neb|lab\.affilyatics\.com)\//g, 'https://affilyatics.com/'));
 // the website keeps the fonts once, in ../../assets/fonts
-fs.writeFileSync(path.join(app, 'popup.css'), fs.readFileSync(path.join(root, 'popup.css'), 'utf8').replace(/url\("fonts\//g, 'url("../../assets/fonts/'));
+fs.writeFileSync(path.join(app, 'popup.css'), fs.readFileSync(path.join(root, 'popup.css'), 'utf8').replace(/url\("fonts\//g, 'url("../../assets/fonts/').replace(/(Oswald-\w+)\.ttf("\)\s*format\(")truetype/g, '$1.woff2$2woff2').replace(/(assets\/fonts\/Oswald-\w+)\.ttf/g, '$1.woff2'));
 
 let h = fs.readFileSync(path.join(root, 'popup.html'), 'utf8').replace(/\r\n/g, '\n');
 const sub = (a, b) => { if (!h.includes(a)) throw new Error('popup.html changed, cannot find: ' + a); h = h.replace(a, b); };

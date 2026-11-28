@@ -4,6 +4,7 @@ Newest first. Dates are when the change was made.
 
 ## 2026-11-28 (5.1.4)
 
+- **5.1.4, French, German and Spanish store texts**: the name and summary come from `_locales/{en,fr,de,es}` (`default_locale` en). The dashboard itself is still English only, and the translated summaries say so. The site's demo build now loads the WOFF2 fonts.
 - **5.1.4, name and summary**: the manifest name is now "Affilyatics: Affiliate Earnings Dashboard" (`short_name` "Affilyatics"), and the summary names what the extension is. No Amazon mark in the name (Amazon's trademark guidelines bar it in software names).
 - **5.1.4, rating request**: after 7 days of use and at least 3 dashboard opens, with data on screen and no error or other message, a card asks for a Chrome Web Store rating. Every user who qualifies sees it (no "are you happy?" filter) and nothing is offered for it. "Rate it" or "No thanks" ends it for good (`rate` in `chrome.storage.local`).
 - **5.1.4, help and rating in the account menu**: "Help or report a problem" (email with the version in the subject) and "Rate Affilyatics".

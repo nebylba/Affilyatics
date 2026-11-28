@@ -12,15 +12,23 @@ import json, os, re, sys, zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(ROOT), 'Affilyatics.com.zip')
 INCLUDE_FILES = ['manifest.json', 'background.js', 'popup.html', 'popup.js', 'popup.css', 'shared.js', 'plan.js', 'license.js', 'theme.js']
-INCLUDE_DIRS = ['icons', 'fonts']
+INCLUDE_DIRS = ['icons', 'fonts', '_locales']
 
 def fail(msg):
     print('PACKAGE FAILED: ' + msg)
     sys.exit(1)
 
 m = json.load(open(os.path.join(ROOT, 'manifest.json'), encoding='utf8'))
-if len(m['description']) > 132:
-    fail('manifest description is %d characters, the store allows 132' % len(m['description']))
+# name and description come from _locales/<language>/messages.json: check every language
+for lang in sorted(os.listdir(os.path.join(ROOT, '_locales'))):
+    msgs = json.load(open(os.path.join(ROOT, '_locales', lang, 'messages.json'), encoding='utf8'))
+    for field in (m['name'], m['description']):
+        if field.startswith('__MSG_') and field[6:-2] not in msgs:
+            fail('_locales/%s lacks %s' % (lang, field))
+    if len(msgs['extDescription']['message']) > 132:
+        fail('_locales/%s: the description is longer than the store allows (132)' % lang)
+    if len(msgs['extName']['message']) > 75:
+        fail('_locales/%s: the name is longer than 75 characters' % lang)
 plan = open(os.path.join(ROOT, 'plan.js'), encoding='utf8').read()
 if not re.search(r"publicKey:\s*'[A-Za-z0-9+/=]{300,}'", plan):
     fail('plan.js has no license public key')
