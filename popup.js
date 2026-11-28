@@ -1026,6 +1026,8 @@ function acctPanelHTML() {
     <button type="button" class="aitem" role="menuitem" data-open="${esc(PLAN_CFG.pricingUrl)}">${pro ? (paid ? 'Manage plan' : 'See plans') : 'See plans'}</button>
     <button type="button" class="aitem" role="menuitem" id="a-check" title="Ask the license server again">Check my plan again</button>
     <button type="button" class="aitem" role="menuitem" data-open="${esc(PLAN_CFG.privacyUrl)}">Privacy policy</button>
+    <a class="aitem" role="menuitem" href="${esc(helpMailHref())}" target="_blank" rel="noopener">Help or report a problem</a>
+    <button type="button" class="aitem" role="menuitem" data-open="${esc(REVIEW_URL)}">Rate Affilyatics</button>
     <div class="asep"></div>
     <button type="button" class="aitem danger" role="menuitem" id="signout">Sign out</button>
   </div>`;
@@ -1057,6 +1059,30 @@ async function finishNotifAsk(granted) {
   await chrome.storage.local.remove('notifAsk');
   if (granted) await saveSettings({ notify: { ...notifyConf(), desktop: true } }, false);
   render();
+}
+// Rating request. Shown to EVERY signed-in user who has really used the dashboard (7 days since the first use, 3 or more
+// opens, data on screen), never next to an error or another message. It never asks first whether the person is happy, and
+// offers nothing in return. Either button ends it for good. `rate` in storage: { since, opens, done }.
+const RATE_AFTER_MS = 7 * 86400000, RATE_MIN_OPENS = 3;
+const REVIEW_URL = 'https://chromewebstore.google.com/detail/pikaeildnladnpjcakoglpheegipkokg/reviews';
+const rateDue = (r, now = Date.now()) => !!(r && !r.done && r.opens >= RATE_MIN_OPENS && now - r.since >= RATE_AFTER_MS);
+async function countOpen(stored) {
+  if (stored && stored.done) { view.rate = stored; return; }
+  view.rate = { since: (stored && stored.since) || Date.now(), opens: Math.min(((stored && stored.opens) || 0) + 1, 99) };
+  await chrome.storage.local.set({ rate: view.rate });
+}
+function endRateAsk() {
+  view.rate = { ...(view.rate || {}), done: true };
+  chrome.storage.local.set({ rate: view.rate });
+  render();
+}
+function rateBannerHTML() {
+  if (!rateDue(view.rate) || view.notifAsk || view.tour != null || view.upsell || isLoading()) return '';
+  return `<div class="banner plan rate" role="status"><span>Would you rate Affilyatics on the Chrome Web Store? An honest rating helps other affiliates decide.</span><span class="hbtns"><button type="button" id="rateyes">Rate it</button><button type="button" id="rateno">No thanks</button></span></div>`;
+}
+function helpMailHref() {
+  let ver = ''; try { ver = chrome.runtime.getManifest().version; } catch (_) { /* not available in tests */ }
+  return `mailto:${PLAN_CFG.contactEmail}?subject=${encodeURIComponent(ver ? `Affilyatics help (version ${ver})` : 'Affilyatics help')}`;
 }
 function planBannerHTML() {
   if (view.justUnlocked && Date.now() - view.justUnlocked < 15000) return `<div class="banner plan good" role="status"><span>${view.unlockGift ? `🎁 <b>A gift for you!</b> ${view.unlockGift === 'lifetime' ? 'Lifetime Pro is now active: every feature, for good.' : 'One month of Pro is now active: all features are unlocked.'} Enjoy! ✨` : '🎉 <b>Congratulations!</b> Pro plan is now active and all features are unlocked. Enjoy! ✨'}</span><button type="button" id="dismissunlock" class="bclose" aria-label="Close" title="Close">✕</button></div>`;
@@ -1205,7 +1231,9 @@ function mainHTML() {
   const nav = `<div class="toolbar"><div class="when">${periodDropdownHTML()}${rangeButtonHTML()}${metricsDD}${currencyDropdownHTML(cRows)}</div><div class="when locwrap">${locsDropdownHTML()}${tagsDropdownHTML()}</div></div>`;
   const siteErr = Object.entries(status.siteErrors || {}).filter(([loc]) => selLocales().includes(loc))
     .map(([loc, e]) => `<div class="banner">${esc(LOCALES[loc].label)}: ${esc(e.message)} <button type="button" data-open="${esc(e.url)}">Open site</button></div>`).join('');
-  const err = planBannerHTML() + siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
+  const planMsg = planBannerHTML();
+  const problem = siteErr + (status.error ? `<div class="banner">Error: ${esc(status.error)}</div>` : (status.errors?.length ? `<div class="banner">${status.errors.length} request(s) failed: ${esc(status.errors[0])}</div>` : ''));
+  const err = planMsg + problem + (!planMsg && !problem && dayRows.length && !heldRows(dayRows).length ? rateBannerHTML() : '');
   if (loadingOnly) return nav + err + '<section class="panel state"><p class="muted">Loading your Amazon Associates data…</p></section>';
   const cardRows = tagAgg() || dayRows;
   return kpiHTML(cardRows) + nav + heldBannerHTML(dayRows) + err + chartHTML(cRows) + tableHTML(dayRows, cardRows);
@@ -1392,6 +1420,8 @@ document.addEventListener('click', async (e) => {
   if (q('#signincancel')) { gateAction('authcancel'); return; }
   if (q('#signout')) { await chrome.runtime.sendMessage({ type: 'license', action: 'signout' }).catch(() => {}); closePops(); view.planMsg = null; view.upsell = null; view.showSettings = false; render(); return; }
   if (q('#dismissunlock')) { view.justUnlocked = 0; render(); return; }
+  if (q('#rateyes')) { chrome.tabs.create({ url: REVIEW_URL }); endRateAsk(); return; }
+  if (q('#rateno')) { endRateAsk(); return; }
   if (q('#dismisstrial')) { saveSettings({ dismissTrialEnded: true }, false); render(); return; }
   if (q('#acct')) { const open = !view.acctOpen; closePops(); view.acctOpen = open; render(); return; }
   if (q('#a-settings')) { closePops(); view.upsell = null; view.showSettings = true; render(); return; }
@@ -1580,7 +1610,7 @@ chrome.storage.onChanged.addListener((ch) => {
 (async () => {
   try {
     if (new URLSearchParams(location.search).has('full')) document.body.classList.add('full');
-    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState', 'license', 'countrySites', 'rates', 'notifAsk']);
+    const st = await chrome.storage.local.get(['settings', 'cache', 'status', 'accounts', 'notif', 'viewState', 'license', 'countrySites', 'rates', 'notifAsk', 'rate']);
     applyDiscovered(st.countrySites); applyRates(st.rates); track('popup_open');
     license = st.license || {};
     settings = { ...DEFAULTS, ...(st.settings || {}) };
@@ -1591,6 +1621,7 @@ chrome.storage.onChanged.addListener((ch) => {
     restoreView(st.viewState);
     clampView();
     view.notifAsk = !!st.notifAsk;
+    if (accountOk(license)) await countOpen(st.rate); else view.rate = st.rate || null;
     render();
     if (view.notifAsk) chrome.permissions.contains({ permissions: ['notifications'] }).then((has) => { if (has) finishNotifAsk(true); }).catch(() => {});
     if (signedIn()) requestLoad();

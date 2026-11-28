@@ -16,7 +16,7 @@ fs.writeFileSync(path.join(app, 'popup.css'), fs.readFileSync(path.join(root, 'p
 
 let h = fs.readFileSync(path.join(root, 'popup.html'), 'utf8').replace(/\r\n/g, '\n');
 const sub = (a, b) => { if (!h.includes(a)) throw new Error('popup.html changed, cannot find: ' + a); h = h.replace(a, b); };
-sub('<title>Affilyatics</title>', '<title>Affilyatics live demo</title>');
+sub('<title>Affilyatics</title>', '<title>Affilyatics live demo</title>\n<meta name="robots" content="noindex">');
 sub('<link rel="icon" type="image/svg+xml" href="icons/favicon-light.svg">', '<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">');
 sub('<script src="theme.js"></script>', '<script>try { var s = localStorage.getItem("affilyatics-site-theme"); if (s) localStorage.setItem("affilyatics-theme", s); } catch (e) {}</script>\n<script src="app/theme.js"></script>');
 sub('<link rel="stylesheet" href="popup.css">', '<link rel="stylesheet" href="app/popup.css">\n<link rel="stylesheet" href="demo.css">');

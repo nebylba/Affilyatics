@@ -2,6 +2,14 @@
 
 Newest first. Dates are when the change was made.
 
+## 2026-11-28 (5.1.4)
+
+- **5.1.4, name and summary**: the manifest name is now "Affilyatics: Affiliate Earnings Dashboard" (`short_name` "Affilyatics"), and the summary names what the extension is. No Amazon mark in the name (Amazon's trademark guidelines bar it in software names).
+- **5.1.4, rating request**: after 7 days of use and at least 3 dashboard opens, with data on screen and no error or other message, a card asks for a Chrome Web Store rating. Every user who qualifies sees it (no "are you happy?" filter) and nothing is offered for it. "Rate it" or "No thanks" ends it for good (`rate` in `chrome.storage.local`).
+- **5.1.4, help and rating in the account menu**: "Help or report a problem" (email with the version in the subject) and "Rate Affilyatics".
+- **5.1.4, feedback after uninstall**: Chrome opens `<site>/uninstall/`. The address carries nothing about the user. No new permissions.
+- **5.1.4, store icon**: the 128 px icon now has 96 px artwork with 16 px of clear space, as the store asks.
+
 ## 2026-11-28
 
 - **5.1.3, updates install by themselves**: when Chrome has downloaded a new version, the extension now installs it at the first safe moment (not during a sign-in, a plan request or a data load, not while the dashboard window is focused, not while a signed-out dashboard is open); it retries every minute. An open dashboard is reopened afterwards without taking focus. This helps updates that come AFTER 5.1.3.

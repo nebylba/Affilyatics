@@ -463,6 +463,8 @@ body.gate-mode #main { flex: 1; }
 .gate button:disabled, .gate input:disabled { opacity: .55; cursor: not-allowed; }
 
 /* "Pro is now active" banner: green, closable */
+.banner.plan.rate { border-color: var(--line, #8892a6); color: var(--text); }
+.banner.plan.rate .hbtns { display: flex; flex: none; gap: 8px; }
 .banner.plan.good { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--panel)); color: var(--text); }
 .banner .bclose { flex: none; border: 0; background: none; color: inherit; font-size: 16px; line-height: 1; padding: 2px 8px; cursor: pointer; opacity: .75; }
 .banner .bclose:hover { opacity: 1; }
@@ -578,6 +580,7 @@ body.gate-mode #main { flex: 1; }
 .apanel .aplan span { color: var(--muted); }
 .apanel .aitem { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
 .apanel .aitem:hover, .apanel .aitem:focus-visible { background: var(--soft, rgba(127,127,127,.14)); }
+a.aitem { text-decoration: none; box-sizing: border-box; }
 .apanel .aitem.danger { color: var(--bad, #d64545); }
 .apanel .asep { height: 1px; margin: 6px 4px; background: var(--line); }
 /* Upgrade / "N days left in Pro" spans the same width as Refresh (Close moved to the icon row) */

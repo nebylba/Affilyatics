@@ -1008,7 +1008,13 @@ async function afterInstall(details) {
   }
 }
 
+// After an uninstall Chrome opens our short feedback page. The address is fixed: nothing about the user is added to it.
+function setFeedbackPage() {
+  try { chrome.runtime.setUninstallURL(PLAN_CFG.privacyUrl.replace('privacy/', 'uninstall/')); } catch (_) { /* older Chrome: skip */ }
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
+  setFeedbackPage();
   chrome.alarms.create('refresh', { periodInMinutes: REFRESH_MINUTES, delayInMinutes: 0.1 });
   chrome.alarms.create('license', { periodInMinutes: PLAN_CFG.recheckHours * 60, delayInMinutes: 0.2 });
   purgeDemoNotifications().catch(() => {});                     // removes any left-over sample alerts
